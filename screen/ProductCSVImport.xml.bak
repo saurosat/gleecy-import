@@ -1,0 +1,112 @@
+
+<!--
+            <field name="productTypeEnumId">
+                <default-field title="Product Type: " tooltip="Can be one of: \
+                &#10;1. PtAsset: physical products, \
+                &#10;2. PtDigitalAsset: physical or digital products, \
+                &#10;3. PtDigital: digital products, \
+                &#10;4. PtAssetUse: asset use (rental), \
+                &#10;5. PtFacilityUse: Facility use (rental), \
+                &#10;6. PtService: Services, \
+                &#10;7. PtVirtual: Virtual (with variants), \
+                &#10;8. PtPickAssembly: Pick Assembly, \
+                &#10;9. PtConfigurable: Configurable Good">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="productClassEnumId">
+                <default-field title="Product Class: " tooltip="Product class">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="assetTypeEnumId">
+                <default-field title="Asset Type column: " tooltip="Predefined asset type, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="assetClassEnumId">
+                <default-field title="Asset Class column: " tooltip="Predefined asset class, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="productName">
+                <default-field title="Product Name column: " tooltip="Product name">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="description">
+                <default-field title="Product Description column: " tooltip="Product description">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="comments">
+                <default-field title="Comment column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+
+            <field name="salesIntroductionDate">
+                <default-field title="Introduction Date column: " tooltip="Sale Introduction Date, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="salesDiscontinuationDate">
+                <default-field title="Discontinuation Date column: " tooltip="Sale Discontinuation Date, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="salesDiscWhenNotAvail">
+                <default-field title="salesDiscWhenNotAvail column: " tooltip="Sale Discontinuation when not Available, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="supportDiscontinuationDate">
+                <default-field title="Support Discontinuation Date column: " tooltip="Support Discontinuation date, ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+
+            <field name="requireInventory">
+                <default-field title="requireInventory column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="chargeShipping">
+                <default-field title="chargeShipping column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="signatureRequiredEnumId">
+                <default-field title="signatureRequiredEnumId column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="shippingInsuranceReqd">
+                <default-field title="shippingInsuranceReqd column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="inShippingBox">
+                <default-field title="inShippingBox column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="defaultShipmentBoxTypeId">
+                <default-field title="defaultShipmentBoxTypeId column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="taxable">
+                <default-field title="taxable column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="taxCode">
+                <default-field title="taxCode column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="returnable">
+                <default-field title="returnable column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+
+            <field name="amountUomId">
+                <default-field title="amountUomId column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="amountFixed">
+                <default-field title="amountFixed column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            <field name="amountRequire">
+                <default-field title="amountRequire column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+
+            <field name="originGeoId">
+                <default-field title="originGeoId column: " tooltip="ignore if not used">
+                    <text-line size="2" maxlength="2" input-type="text"/>
+                </default-field></field>
+            -->

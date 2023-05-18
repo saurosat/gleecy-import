@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+    <screen-facade>
+        <screen location="component://SimpleScreens/screen/SimpleScreens/Catalog/Product.xml">
+            <subscreens-item name="ProductCSVImport"  menu-title="Import frCSV" menu-include="true" menu-index="7"
+                             location="component://DataImport/screen/ProductCSVImport.xml" />
+
+        </screen>
+    </screen-facade>
+</moqui-conf>
