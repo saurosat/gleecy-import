@@ -2,7 +2,6 @@ package io.gleecy.service;
 
 import io.gleecy.converter.FieldValueConverter;
 import org.moqui.context.*;
-import org.moqui.entity.EntityException;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityDefinition;
 import org.moqui.impl.entity.EntityFacadeImpl;
@@ -90,7 +89,7 @@ public class TemplateServices {
                     , NotificationMessage.NotificationType.success);
             result.put("entity", fConfig);
         } catch (Exception e) {
-            tf.rollback(beganTransaction, "Error loading entity data from CSV", e);
+            tf.rollback(beganTransaction, "Error saving configuration data", e);
             messages.addError("Cannot save FieldConfig, templateName="
                     + template.get("templateName")
                     + ", entity=" + entityName
@@ -100,34 +99,5 @@ public class TemplateServices {
         }
 
         return result;
-    }
-    //public static boolean execInTransaction(TransactionFacade tf, Func)
-    public static boolean beginTransaction(TransactionFacade tf, MessageFacade messages, int timeout) {
-        try {
-            return tf.begin(timeout);
-        } catch (TransactionException e) {
-            messages.addError("Cannot start DB transaction: " + e.getMessage());
-            return false;
-        }
-    }
-    public static boolean commitTransaction(TransactionFacade tf, MessageFacade messages, boolean transactionBegan) {
-        try {
-            tf.commit(transactionBegan);
-            return true;
-        } catch (TransactionException e) {
-            messages.addError("Cannot commit DB transaction. Rolling back. Error message: " + e.getMessage());
-            rollbackTransaction(tf, messages, transactionBegan, e);
-            return false;
-        }
-    }
-    public static boolean rollbackTransaction(TransactionFacade tf, MessageFacade messages
-            , boolean transactionBegan, Exception cause) {
-        try {
-            tf.rollback(transactionBegan, cause.getMessage(), cause);
-            return true;
-        } catch (TransactionException e) {
-            messages.addError("Cannot rollback DB transaction: " + e.getMessage());
-            return false;
-        }
     }
 }

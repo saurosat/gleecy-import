@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class CsvParser {
@@ -40,17 +41,18 @@ public class CsvParser {
             Object value = entry.getValue().convert(rowValues, errors);
             entity.set(key, value);
         }
+        entity.setSequencedIdPrimary();
         return entity;
     }
     public List<EntityValue> parse(FileItem csvFile, List<String> errors) {
         List<EntityValue> eList = new ArrayList<>();
+        InputStream is = null;
+        InputStreamReader isReader = null;
         BufferedReader bufReader = null;
 
         try {
-            InputStream is = null;
-            InputStreamReader isReader = null;
             is = csvFile.getInputStream();
-            isReader = new InputStreamReader(is, "UTF-8");
+            isReader = new InputStreamReader(is, StandardCharsets.UTF_8);
             bufReader = new BufferedReader(isReader);
 
             CSVParser parser = CSVFormat.newFormat(csvDelimiter())
