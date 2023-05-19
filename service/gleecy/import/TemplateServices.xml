@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <service verb="saveFieldConfig" type="java" location="io.gleecy.service.TemplateServices" method="storeFieldConfig">
+        <in-parameters>
+            <parameter name="templateId" required="true" type="String"/>
+            <parameter name="fieldName" required="true" type="String" />
+            <parameter name="config" required="true" type="String" />
+        </in-parameters>
+    </service>
+</services>

@@ -1,5 +1,6 @@
-package io.gleecy;
+package io.gleecy.parser;
 
+import io.gleecy.converter.FieldValueConverter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -34,7 +35,7 @@ public class ProductImport {
         private final EntityFacadeImpl efi;
         private EntityValue importTemplate = null;
 
-        private Map<String, FieldValueHandler> handlerMap = new HashMap<>();
+        private Map<String, FieldValueConverter> handlerMap = new HashMap<>();
         private int fromRow = 0, toRow = Integer.MAX_VALUE;
         private int fromCol = 0, toCol = Integer.MAX_VALUE;
         EntityValueHandler(String templateId, EntityFacadeImpl efi){
@@ -44,18 +45,20 @@ public class ProductImport {
         public boolean isEmpty() {
             return importTemplate == null || handlerMap.isEmpty();
         }
-        public EntityValue readRow(String[] rowValues) {
+        public EntityValue readRow(String[] rowValues, List<String> errors) {
             EntityValue entity = efi.makeValue("mantle.product.Product"); //TODO:
-            for(Map.Entry<String, FieldValueHandler> entry : handlerMap.entrySet()) {
+
+            for(Map.Entry<String, FieldValueConverter> entry : handlerMap.entrySet()) {
                 String key = entry.getKey();
-                Object value = entry.getValue().getFieldValue(rowValues);
+                Object value = entry.getValue().convert(rowValues, errors);
                 entity.set(key, value);
             }
             return entity;
         }
-        public List<EntityValue> parseCsvFile(FileItem csvFile) throws IOException {
+        public List<EntityValue> parseCsvFile(FileItem csvFile, List<String> errors) throws IOException {
             List<EntityValue> eList = new ArrayList<>();
             BufferedReader bufReader = null;
+
             try {
                 InputStream is = null;
                 InputStreamReader isReader = null;
@@ -78,7 +81,7 @@ public class ProductImport {
                 for (; rowIdx < toCol && itor.hasNext(); rowIdx++) {
                     CSVRecord record = itor.next();
                     String[] rowValues = record.toList().toArray(new String[0]);
-                    EntityValue entity = readRow(rowValues);
+                    EntityValue entity = readRow(rowValues, errors);
                     eList.add(entity);
                 }
             } finally {
@@ -97,6 +100,7 @@ public class ProductImport {
                 return false;
             }
             EntityDefinition productEd = efi.getEntityDefinition("mantle.product.Product");
+
             for (Map.Entry<String, Object> entry: importTemplate.entrySet()) {
                 if(entry.getValue() == null)
                     continue;
@@ -131,8 +135,8 @@ public class ProductImport {
                     if(!fieldNames.contains(entry.getKey())) {
                         continue;
                     }
-                    FieldValueHandler fVHandler = new FieldValueHandler(configStr, efi);
-                    if(fVHandler.initialized) {
+                    FieldValueConverter fVHandler = new FieldValueConverter();
+                    if(fVHandler.initialize(configStr) && fVHandler.load(efi)) {
                         handlerMap.put(entry.getKey(), fVHandler);
                         System.out.println("handlerMap added " + entry.getKey() + "->" + fVHandler.getClass().getName());
                     }
@@ -159,11 +163,12 @@ public class ProductImport {
 
         EntityValueHandler eVHandler = new EntityValueHandler(templateId, efi);
         eVHandler.loadTemplate(errors);
-        List<EntityValue> entityList = eVHandler.parseCsvFile(csvFile);
+        List<EntityValue> entityList = eVHandler.parseCsvFile(csvFile, errors);
 
         TransactionFacade tf = efi.ecfi.transactionFacade;
-        boolean beganTransaction = tf.begin(600); //TODO
+        boolean beganTransaction = false;
         try {
+            beganTransaction = tf.begin(600); //TODO
             for (EntityValue entity : entityList) {
                 entity.setSequencedIdPrimary();
                 entity.create();

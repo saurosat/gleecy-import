@@ -2,10 +2,10 @@
 
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
         default-menu-title="Import CSV">
-    <subscreens default-item="ImportConfigs"/>
+    <subscreens default-item="CsvImportTemplates"/>
     <widgets>
-        <label text="Select configuration to import data" condition="!template" />
-        <subscreens-panel id="ConfigPanel" type="popup"/>
+        <label text="Select template to import data" condition="!template" />
+        <subscreens-panel id="ConfigPanel" type="tab"/>
     </widgets>
 
 </screen>

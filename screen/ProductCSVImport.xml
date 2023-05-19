@@ -24,12 +24,41 @@
                 <break/>
             </if>
         </iterate>
+
+        <set field="configuredFieldNames" from="[ 'pseudoId', 'productTypeEnumId', 'productClassEnumId']" />
+        <set field="fieldNames" from="[]" />
+        <script>
+            import org.moqui.entity.EntityValue
+            import org.moqui.impl.entity.EntityDefinition
+
+            EntityDefinition ed = ec.getEntity().getEntityDefinition("mantle.product.Product")
+            List nonPkFNames = ed.getNonPkFieldNames()
+            nonPkFNames.remove("lastUpdatedStamp")
+            nonPkFNames.removeAll(configuredFieldNames)
+
+            for (String fName : nonPkFNames) {
+                fieldNames.add(fName)
+                //fieldNames.add([fieldName: fName, text: "Field " + fName])
+            }
+        </script>
+
+        <iterate list="fieldNames" entry="tName">
+            <log message="${tName}" />
+        </iterate>
     </actions>
 
     <widgets>
         <container-row>
             <row-col>
                 <form-single name="SelectTemplate" transition="selectTemplate" >
+                    <field name="test">
+                        <default-field title="Test">
+                            <drop-down>
+                                <option key="_NA_" text="N/A"/>
+                                <list-options list="fieldNames"/>
+                            </drop-down>
+                        </default-field>
+                    </field>
                     <field name="templateId">
                         <default-field title="Product Import Template">
                             <drop-down submit-on-select="true">
