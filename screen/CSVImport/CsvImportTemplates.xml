@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        default-menu-include="false">
+    <transition name="createTemplate">
+        <parameter name="pseudoId" required="true" />
+        <parameter name="templateName" required="true"/>
+        <parameter name="entityName" required="true" />
+        <actions>
+            <set field="entityNames" from="[]" />
+            <script>import org.moqui.impl.entity.EntityFacadeImpl
+
+            EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+            entityNames.addAll(efi.getAllEntityNames("^mantle."))
+            </script>
+            <if condition="!entityNames.contains(entityName)">
+                <message error="true">Invalid Entity Name: ${entityName}</message>
+            </if>
+            <if condition="templateName.isEmpty()">
+                <message error="true">Template Name is not set</message>
+            </if>
+            <if condition="pseudoId.isEmpty()">
+                <message error="true">pseudoId is not set </message>
+            </if>
+            <entity-find entity-name="gleecy.import.ImportTemplate" list="templateByPseudo" >
+                <econdition field-name="pseudoId" from="pseudoId" />
+            </entity-find>
+            <if condition="templateByPseudo != null  &amp;&amp; !templateByPseudo.isEmpty()">
+                <message error="true">pseudoId ${pseudoId} already exist </message>
+            </if>
+            <check-errors />
+            <service-call name="create#gleecy.import.ImportTemplate" />
+        </actions>
+        <default-response url="."/>
+    </transition>
+    <transition name="editTemplate">
+        <default-response url="../EditTemplate"/>
+    </transition>
+    <actions>
+        <set field="entityNames" from="[]" />
+        <script>import org.moqui.impl.entity.EntityFacadeImpl
+
+        EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+        entityNames.addAll(efi.getAllEntityNames("^mantle."))
+        </script>
+    </actions>
+    <widgets>
+        <container-dialog id="NewTemplateDialog" button-text="New Template">
+            <form-single name="NewTemplateForm" transition="createTemplate">
+                <field name="pseudoId"><default-field title="ID"><text-line /> </default-field></field>
+                <field name="entityName"><default-field title="Entity Name">
+                    <drop-down>
+                        <list-options list="entityNames" />
+                    </drop-down></default-field></field>
+                <field name="templateName"><default-field title="Template Name"><text-line /></default-field></field>
+                <field name="description"><default-field title="Description"><text-line /></default-field></field>
+                <field name="fromRow"><default-field title="First data row index"><text-line size="10" input-type="number"/></default-field></field>
+                <field name="toRow"><default-field title="Last data row index"><text-line size="10" input-type="number"/></default-field></field>
+                <field name="fromCol"><default-field title="First data column index"><text-line size="10" input-type="text"/></default-field></field>
+                <field name="toCol"><default-field title="Last data column index"><text-line size="10" input-type="text"/></default-field></field>
+                <field name="submitButton"><default-field title="Submit"><submit/></default-field></field>
+                <field-layout>
+                    <fields-not-referenced />
+                    <field-row><field-ref name="fromRow"/><field-ref name="toRow"/></field-row>
+                    <field-row><field-ref name="fromCol"/><field-ref name="toCol"/></field-row>
+                    <field-row><field-ref name="submitButton"/></field-row>
+                </field-layout>
+            </form-single>
+        </container-dialog>
+
+        <form-list name="TemplatesForm" list="templateList" skip-form="true" header-dialog="true" select-columns="true"
+                   saved-finds="true" show-csv-button="true" show-page-size="true">
+            <entity-find entity-name="gleecy.import.ImportTemplate" list="templateList" cache="true" />
+            <field name="templateId"><default-field><hidden /></default-field></field>
+            <field name="pseudoId"><default-field title="ID"><display/></default-field></field>
+            <field name="templateName"><default-field title="Template Name"><display/></default-field></field>
+            <field name="description"><default-field title="Description"><display/></default-field></field>
+            <field name="entityName"><default-field title="Entity Name"><display/></default-field></field>
+            <field name="edit">
+                <default-field title=""><link url="editTemplate" text="Edit" link-type="anchor"/></default-field>
+            </field>
+            <field name="use">
+                <default-field title=""><link url="uploadCsv" text="Use" link-type="anchor"/></default-field>
+            </field>
+        </form-list>
+    </widgets>
+</screen>

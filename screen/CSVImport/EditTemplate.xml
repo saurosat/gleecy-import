@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        default-menu-title="Edit Template" default-menu-index="1" >
+
+    <parameter name="templateId" required="true"/>
+    <transition name="editTemplate">
+        <parameter name="templateId" required="true" />
+        <parameter name="pseudoId" required="true" />
+        <parameter name="templateName" required="true"/>
+        <parameter name="entityName" required="true" />
+        <actions>
+            <if condition="templateId.isEmpty()">
+                <message error="true">Unknown Template Id </message>
+            </if>
+            <set field="entityNames" from="[]" />
+            <script>import org.moqui.impl.entity.EntityFacadeImpl
+
+            EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+            entityNames.addAll(efi.getAllEntityNames("^mantle."))
+            </script>
+            <if condition="!entityNames.contains(entityName)">
+                <message error="true">Invalid Entity Name: ${entityName}</message>
+            </if>
+            <if condition="templateName.isEmpty()">
+                <message error="true">Template Name is not set</message>
+            </if>
+            <if condition="pseudoId.isEmpty()">
+                <message error="true">pseudoId is not set </message>
+            </if>
+            <entity-find entity-name="gleecy.import.ImportTemplate" list="templateByPseudo" >
+                <econdition field-name="pseudoId" from="pseudoId" />
+            </entity-find>
+            <if condition="templateByPseudo != null  &amp;&amp; !templateByPseudo.isEmpty()">
+                <message error="true">seudoId ${pseudoId} already exist </message>
+            </if>
+            <check-errors />
+            <service-call name="update#gleecy.import.ImportTemplate" />
+        </actions>
+        <default-response url="."/>
+    </transition>
+    <transition name="storeFieldConfig">
+        <service-call name="gleecy.import.TemplateServices.saveFieldConfig"/>
+        <default-response url="."/>
+    </transition>
+    <actions>
+        <entity-find-one entity-name="gleecy.import.ImportTemplate" value-field="template" cache="false" for-update="true"/>
+        <entity-find entity-name="gleecy.import.FieldConfig" list="fieldConfigs" />
+        <set field="configuredFieldNames" from="fieldConfigs*.fieldName" />
+        <set field="fieldNames" from="[]" />
+        <script>
+            import org.moqui.entity.EntityValue
+            import org.moqui.impl.entity.EntityDefinition
+            import org.moqui.impl.entity.EntityFacadeImpl
+
+            EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+            EntityDefinition ed = efi.getEntityDefinition(template.entityName)
+            List nonPkFNames = ed.getNonPkFieldNames()
+            nonPkFNames.remove("lastUpdatedStamp")
+            fieldNames.addAll(nonPkFNames.findAll { !configuredFieldNames.contains(it) })
+        </script>
+    </actions>
+
+    <widgets>
+        <container-row>
+            <row-col lg="6">
+                <form-single name="EditTemplateForm" transition="editTemplate" map="template">
+                    <field name="pseudoId"><default-field title="ID"><text-line /> </default-field></field>
+                    <field name="entityName"><default-field title="Entity Name"><display/></default-field></field>
+                    <field name="templateName"><default-field title="Template Name"><text-line /></default-field></field>
+                    <field name="description"><default-field title="Description"><text-line /></default-field></field>
+                    <field name="fromRow"><default-field title="First data row index"><text-line size="10" input-type="number"/></default-field></field>
+                    <field name="toRow"><default-field title="Last data row index"><text-line size="10" input-type="number"/></default-field></field>
+                    <field name="fromCol"><default-field title="First data column index"><text-line size="10" input-type="text"/></default-field></field>
+                    <field name="toCol"><default-field title="Last data column index"><text-line size="10" input-type="text"/></default-field></field>
+                    <field name="submitButton"><default-field title="Submit"><submit/></default-field></field>
+                    <field-layout>
+                        <fields-not-referenced />
+                        <field-row><field-ref name="pseudoId"/><field-ref name="entityName"/></field-row>
+                        <field-row><field-ref name="templateName"/><field-ref name="description"/></field-row>
+                        <field-row><field-ref name="fromRow"/><field-ref name="toRow"/></field-row>
+                        <field-row><field-ref name="fromCol"/><field-ref name="toCol"/></field-row>
+                        <field-row><field-ref name="submitButton"/></field-row>
+                    </field-layout>
+                </form-single>
+            </row-col>
+            <row-col lg="6">
+                <container-box>
+                    <box-header title="Field configurations"/>
+                    <box-toolbar>
+                        <container-dialog id="AddFieldConfig" button-text="Add Field Configuration">
+                            <form-single name="FieldConfigForm" transition="storeFieldConfig">
+                                <field name="templateId"><default-field><hidden/></default-field></field>
+                                <field name="fieldName"><default-field title="Field Name">
+                                    <drop-down><list-options list="fieldNames"/></drop-down>
+                                    </default-field></field>
+                                <field name="config"><default-field title="Field Configuration"><text-line /></default-field></field>
+                                <field name="submitButton"><default-field title="Add"><submit/></default-field></field>
+                            </form-single>
+                        </container-dialog>
+                    </box-toolbar>
+                    <box-body>
+                        <form-list name="EditFieldConfigForm" list="fieldConfigs" transition="storeFieldConfig">
+                            <field name="templateId"><default-field><hidden /></default-field></field>
+                            <field name="fieldName"><default-field title="Field Name"><display /></default-field></field>
+                            <field name="config"><default-field title="Configuration"><text-line /></default-field></field>
+                            <field name="submitButton"><default-field title="Update"><submit/></default-field></field>
+                            <field name="removeButton"><default-field title="">
+                                <link url="deleteFieldConfig" icon="fa fa-trash"
+                                      confirmation="Are you sure want to delete this field import configuration?"/>
+                                </default-field></field>
+                        </form-list>
+                    </box-body>
+                </container-box>
+            </row-col>
+        </container-row>
+    </widgets>
+</screen>
