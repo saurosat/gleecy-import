@@ -4,6 +4,12 @@
         default-menu-title="Edit Template" default-menu-index="1" >
 
     <parameter name="templateId" required="true"/>
+    <transition name="deleteFieldConfig">
+        <parameter name="templateId" required="true" />
+        <parameter name="fieldName" required="true" />
+        <service-call name="delete#gleecy.import.FieldConfig" />
+        <default-response url="."/>
+    </transition>
     <transition name="editTemplate">
         <parameter name="templateId" required="true" />
         <parameter name="pseudoId" required="true" />
@@ -11,16 +17,7 @@
         <parameter name="entityName" required="true" />
         <actions>
             <if condition="templateId.isEmpty()">
-                <message error="true">Unknown Template Id </message>
-            </if>
-            <set field="entityNames" from="[]" />
-            <script>import org.moqui.impl.entity.EntityFacadeImpl
-
-            EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
-            entityNames.addAll(efi.getAllEntityNames("^mantle."))
-            </script>
-            <if condition="!entityNames.contains(entityName)">
-                <message error="true">Invalid Entity Name: ${entityName}</message>
+                <return error="true" message="Unknown Template Id" />
             </if>
             <if condition="templateName.isEmpty()">
                 <message error="true">Template Name is not set</message>
@@ -28,11 +25,19 @@
             <if condition="pseudoId.isEmpty()">
                 <message error="true">pseudoId is not set </message>
             </if>
-            <entity-find entity-name="gleecy.import.ImportTemplate" list="templateByPseudo" >
-                <econdition field-name="pseudoId" from="pseudoId" />
-            </entity-find>
-            <if condition="templateByPseudo != null  &amp;&amp; !templateByPseudo.isEmpty()">
-                <message error="true">seudoId ${pseudoId} already exist </message>
+            <if condition="entityName.isEmpty()">
+                <message error="true">Entity Name is not set</message>
+                <else>
+                    <set field="entityNames" from="ec.getEntity().getAllEntityNames('^mantle.')" />
+                    <!--<script>
+                        import org.moqui.impl.entity.EntityFacadeImpl
+                        EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+                        entityNames.addAll(efi.getAllEntityNames("^mantle."))
+                    </script>-->
+                    <if condition="!entityNames.contains(entityName)">
+                        <message error="true">Invalid Entity Name: ${entityName}</message>
+                    </if>
+                </else>
             </if>
             <check-errors />
             <service-call name="update#gleecy.import.ImportTemplate" />
@@ -45,7 +50,9 @@
     </transition>
     <actions>
         <entity-find-one entity-name="gleecy.import.ImportTemplate" value-field="template" cache="false" for-update="true"/>
-        <entity-find entity-name="gleecy.import.FieldConfig" list="fieldConfigs" />
+        <entity-find entity-name="gleecy.import.FieldConfig" list="fieldConfigs">
+            <econdition field-name="templateId" from="templateId" />
+        </entity-find>
         <set field="configuredFieldNames" from="fieldConfigs*.fieldName" />
         <set field="fieldNames" from="[]" />
         <script>
@@ -64,16 +71,23 @@
     <widgets>
         <container-row>
             <row-col lg="6">
-                <form-single name="EditTemplateForm" transition="editTemplate" map="template">
+                <form-single name="EditTemplateForm" transition="editTemplate" map="template" >
+                    <field name="templateId"><default-field>
+                        <hidden />
+                    </default-field></field>
                     <field name="pseudoId"><default-field title="ID"><text-line /> </default-field></field>
                     <field name="entityName"><default-field title="Entity Name"><display/></default-field></field>
-                    <field name="templateName"><default-field title="Template Name"><text-line /></default-field></field>
+                    <field name="templateName"><default-field title="Template Name"><text-line input-type="text"/></default-field></field>
                     <field name="description"><default-field title="Description"><text-line /></default-field></field>
                     <field name="fromRow"><default-field title="First data row index"><text-line size="10" input-type="number"/></default-field></field>
                     <field name="toRow"><default-field title="Last data row index"><text-line size="10" input-type="number"/></default-field></field>
                     <field name="fromCol"><default-field title="First data column index"><text-line size="10" input-type="text"/></default-field></field>
                     <field name="toCol"><default-field title="Last data column index"><text-line size="10" input-type="text"/></default-field></field>
-                    <field name="submitButton"><default-field title="Submit"><submit/></default-field></field>
+                    <field name="submitButton">
+                        <default-field title="Submit">
+                            <submit/>
+                        </default-field>
+                    </field>
                     <field-layout>
                         <fields-not-referenced />
                         <field-row><field-ref name="pseudoId"/><field-ref name="entityName"/></field-row>

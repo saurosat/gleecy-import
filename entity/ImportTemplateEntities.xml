@@ -49,12 +49,12 @@
     </entity>
     <entity entity-name="ImportTemplate" package="gleecy.import">
         <field name="templateId" type="id" is-pk="true"/>
-        <field name="pseudoId" type="text-short" default="templateId"/>
+        <field name="pseudoId" type="text-short" default="templateId" not-null="true"/>
         <field name="ownerPartyId" type="id" />
-        <field name="templateName" type="text-short" />
+        <field name="templateName" type="text-short" not-null="true"/>
         <field name="description" type="text-long" />
-        <field name="entityName" type="text-medium" />
-        <field name="fromRow" type="number-integer"/>
+        <field name="entityName" type="text-medium" not-null="true"/>
+        <field name="fromRow" type="number-integer" not-null="true"/>
         <field name="toRow" type="number-integer" />
         <field name="fromCol" type="number-integer" />
         <field name="toCol" type="number-integer" />
@@ -71,7 +71,7 @@
     <entity entity-name="FieldConfig" package="gleecy.import">
         <field name="templateId" type="id" is-pk="true" />
         <field name="fieldName" type="text-short" is-pk="true" />
-        <field name="config" type="text-long" />
+        <field name="config" type="text-long" not-null="true"/>
         <relationship type="one" related="gleecy.import.ImportTemplate" short-alias="importTemplate" />
     </entity>
 

@@ -1,40 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
-        default-menu-include="false">
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd">
+    <transition name="deleteTemplate">
+        <parameter name="templateId" required="true" />
+        <service-call name="delete#gleecy.import.ImportTemplate" />
+        <default-response url="."/>
+    </transition>
     <transition name="createTemplate">
         <parameter name="pseudoId" required="true" />
         <parameter name="templateName" required="true"/>
         <parameter name="entityName" required="true" />
         <actions>
-            <set field="entityNames" from="[]" />
-            <script>import org.moqui.impl.entity.EntityFacadeImpl
-
-            EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
-            entityNames.addAll(efi.getAllEntityNames("^mantle."))
+            <script>
+                System.out.println(ec.getContext().get("templateId"))
+                System.out.println(ec.getContext().get("pseudoId"))
+                System.out.println(ec.getContext().get("templateName"))
+                System.out.println(ec.getContext().get("entityName"))
             </script>
-            <if condition="!entityNames.contains(entityName)">
-                <message error="true">Invalid Entity Name: ${entityName}</message>
-            </if>
             <if condition="templateName.isEmpty()">
                 <message error="true">Template Name is not set</message>
             </if>
             <if condition="pseudoId.isEmpty()">
                 <message error="true">pseudoId is not set </message>
+                <else>
+                    <entity-find entity-name="gleecy.import.ImportTemplate" list="templateByPseudo" >
+                        <econdition field-name="pseudoId" from="pseudoId" />
+                    </entity-find>
+                    <if condition="templateByPseudo != null  &amp;&amp; !templateByPseudo.isEmpty()">
+                        <message error="true">PseudoId ${pseudoId} already exist </message>
+                    </if>
+                </else>
             </if>
-            <entity-find entity-name="gleecy.import.ImportTemplate" list="templateByPseudo" >
-                <econdition field-name="pseudoId" from="pseudoId" />
-            </entity-find>
-            <if condition="templateByPseudo != null  &amp;&amp; !templateByPseudo.isEmpty()">
-                <message error="true">pseudoId ${pseudoId} already exist </message>
+            <if condition="entityName.isEmpty()">
+                <message error="true">Entity Name is not set</message>
+                <else>
+                    <set field="entityNames" from="ec.getEntity().getAllEntityNames('^mantle.')" />
+                    <!--<script>
+                        import org.moqui.impl.entity.EntityFacadeImpl
+                        EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
+                        entityNames.addAll(efi.getAllEntityNames("^mantle."))
+                    </script>-->
+                    <if condition="!entityNames.contains(entityName)">
+                        <message error="true">Invalid Entity Name: ${entityName}</message>
+                    </if>
+                </else>
             </if>
             <check-errors />
-            <service-call name="create#gleecy.import.ImportTemplate" />
+            <service-call name="create#gleecy.import.ImportTemplate" in-map="context" />
+                          <!--in-map="[pseudoId:pseudoId,templateName:templateName,entityName:entityName,description:description,fromRow:fromRow,toRow:toRow,fromCol:fromCol,toCol:toCol]"/>-->
         </actions>
         <default-response url="."/>
     </transition>
     <transition name="editTemplate">
         <default-response url="../EditTemplate"/>
+    </transition>
+    <transition name="uploadCsv">
+        <default-response url="../CsvFileUpload"/>
     </transition>
     <actions>
         <set field="entityNames" from="[]" />
@@ -79,6 +100,12 @@
             <field name="edit">
                 <default-field title=""><link url="editTemplate" text="Edit" link-type="anchor"/></default-field>
             </field>
+            <field name="delete"><default-field title="Delete">
+                <container type="span">
+                    <link url="deleteTemplate" icon="fa fa-trash"
+                          confirmation="Are you sure want to delete this import template?"/>
+                </container>
+            </default-field></field>
             <field name="use">
                 <default-field title=""><link url="uploadCsv" text="Use" link-type="anchor"/></default-field>
             </field>

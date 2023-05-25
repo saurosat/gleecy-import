@@ -120,6 +120,7 @@ public class FieldMapping extends BasicConverter {
         return true;
     }
 
+    @Override
     public boolean load(EntityFacadeImpl efi) {
         if (efi == null) {
             return false;

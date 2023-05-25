@@ -1,7 +1,6 @@
 package io.gleecy.converter.basic;
 
 import io.gleecy.converter.ValueConverter;
-import org.moqui.impl.entity.EntityFacadeImpl;
 
 import java.lang.reflect.Array;
 import java.util.*;
@@ -10,8 +9,8 @@ import java.util.regex.Pattern;
 public abstract class BasicConverter implements ValueConverter {
     protected BasicConverter() {}
 
-    public static final Pattern ENTRY_DELIM = Pattern.compile("\\#{2}(?![^\\[\\]]*])");  //"##";
-    public static final Pattern KEY_VAL_DELIM = Pattern.compile("\\:{1}(?![^\\[\\]]*])"); //":";
+    public static final Pattern ENTRY_DELIM = Pattern.compile("#{2}(?![^\\[\\]]*])");  //"##";
+    public static final Pattern KEY_VAL_DELIM = Pattern.compile(":{1}(?![^\\[\\]]*])"); //":";
     private static final class BasicClass {
         public final String prefix;
         public final Class<? extends BasicConverter> clazz;
@@ -27,17 +26,7 @@ public abstract class BasicConverter implements ValueConverter {
             }
         }
     }
-    private static LinkedList<BasicClass> registry = new LinkedList<>();
-    static {
-        register(ColIndex.PREFIX, ColIndex.class);
-        register(DefaultValue.PREFIX, DefaultValue.class);
-        register(Trim.PREFIX, Trim.class);
-        register(ValueMapping.PREFIX, ValueMapping.class);
-        register(Date.PREFIX, Date.class);
-        register(Time.PREFIX, Time.class);
-        register(DateTime.PREFIX, DateTime.class);
-        register(FieldMapping.PREFIX, FieldMapping.class);
-    }
+    private static final LinkedList<BasicClass> registry = new LinkedList<>();
     public static void register(String prefix, Class<? extends BasicConverter> converterClass) {
         registry.add(new BasicClass(prefix, converterClass));
     }
@@ -50,6 +39,8 @@ public abstract class BasicConverter implements ValueConverter {
             BasicClass item = itor.next();
             if(configStr.startsWith(item.prefix)) {
                 converter = item.newInstance();
+                converter.initialize(configStr);
+                break;
             }
         }
         return converter;
@@ -76,15 +67,4 @@ public abstract class BasicConverter implements ValueConverter {
         return value;
     }
 
-    public static ValueConverter newInstance(String configStr, EntityFacadeImpl efi) {
-        ValueConverter converter =newInstance(configStr);
-        if(converter == null) {
-            return null;
-        }
-        if(!converter.initialize(configStr)) {
-            return null;
-        }
-        converter.load(efi);
-        return converter;
-    }
 }

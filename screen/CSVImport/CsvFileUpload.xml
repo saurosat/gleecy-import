@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd"
+        default-menu-title="Upload CSV File" default-menu-index="2">
+    <parameter name="templateId" required="false" />
+    <transition name="uploadCsvFile">
+        <parameter name="csvFile" required="true" />
+        <parameter name="templateId" required="true" />
+        <service-call name="gleecy.import.CsvImportServices.importCsv" out-map="resultMap"/>
+        <default-response url="."/>
+    </transition>
+
+    <widgets>
+        <container-row>
+        <row-col lg="6">
+        <form-single name="UploadCSV" transition="uploadCsvFile" >
+            <field name="templateId" from="templateId">
+                <default-field title="Import Template">
+                    <drop-down>
+                        <option key="" text="Select a template to extract data from CSV" />
+                        <entity-options key="${templateId}" text="${templateName}: ${entityName}" >
+                            <entity-find entity-name="gleecy.import.ImportTemplate" cache="true"/>
+                        </entity-options>
+                    </drop-down>
+                </default-field>
+            </field>
+            <field name="csvFile"><default-field title="Upload CSV"><file/></default-field></field>
+            <field name="submitButton"><default-field title="Upload"><submit/></default-field></field>
+        </form-single>
+        </row-col>
+        </container-row>
+    </widgets>
+</screen>

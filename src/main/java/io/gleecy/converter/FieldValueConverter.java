@@ -1,6 +1,7 @@
 package io.gleecy.converter;
 
-import io.gleecy.converter.basic.BasicConverter;
+import io.gleecy.converter.basic.*;
+import io.gleecy.converter.basic.Date;
 import org.moqui.impl.entity.EntityFacadeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,8 +10,18 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 public class FieldValueConverter implements ValueConverter {
-    public static final Pattern CONFIG_DELIM = Pattern.compile("\\#{3}(?![^\\[\\]]*])"); //"###";
+    public static final Pattern CONFIG_DELIM = Pattern.compile("#{3}(?![^\\[\\]]*])"); //"###";
     public final static Logger logger = LoggerFactory.getLogger(FieldValueConverter.class);
+    static {
+        BasicConverter.register(ColIndex.PREFIX, ColIndex.class);
+        BasicConverter.register(DefaultValue.PREFIX, DefaultValue.class);
+        BasicConverter.register(Trim.PREFIX, Trim.class);
+        BasicConverter.register(ValueMapping.PREFIX, ValueMapping.class);
+        BasicConverter.register(io.gleecy.converter.basic.Date.PREFIX, Date.class);
+        BasicConverter.register(Time.PREFIX, Time.class);
+        BasicConverter.register(DateTime.PREFIX, DateTime.class);
+        BasicConverter.register(FieldMapping.PREFIX, FieldMapping.class);
+    }
 
     protected LinkedList<ValueConverter> valueConverters = new LinkedList<>();
     public FieldValueConverter(){ }

@@ -4,7 +4,6 @@
         default-menu-title="Import CSV">
     <subscreens default-item="CsvImportTemplates"/>
     <widgets>
-        <label text="Select template to import data" condition="!template" />
         <subscreens-panel id="ConfigPanel" type="tab"/>
     </widgets>
 

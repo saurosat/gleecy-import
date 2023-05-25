@@ -1,9 +1,6 @@
 package io.gleecy.service;
 import io.gleecy.parser.CsvParser;
-import org.moqui.context.ExecutionContext;
-import org.moqui.context.MessageFacade;
-import org.moqui.context.NotificationMessage;
-import org.moqui.context.TransactionFacade;
+import org.moqui.context.*;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityFacadeImpl;
 import org.moqui.util.ContextStack;
@@ -20,11 +17,11 @@ public class CsvImportServices {
         Map<String, Object> result = new HashMap<>();
         String templateId = (String) cs.get("templateId");
         if(templateId == null || (templateId = templateId.trim()).isEmpty()) {
-            messages.addError("Not any import template selected");
+            messages.addError(new ValidationError("templateId", "Not any import template selected", null));
         }
         FileItem csvFile = (FileItem) cs.get("csvFile");
         if(csvFile == null) {
-            messages.addError("Not any CSV file uploaded");
+            messages.addError(new ValidationError("csvFile", "Not any CSV file uploaded", null));
         }
         if(messages.hasError()) {
             return result;

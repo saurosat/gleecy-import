@@ -13,9 +13,12 @@ public class ValueMapping extends BasicConverter {
 
     @Override
     public Object convert(Object value, List<String> errors) {
-        Object obj = BasicConverter.trimToNull(value);
-        if (obj == null) return null;
-        return valueMap.get(obj);
+        //Object value = BasicConverter.trimToNull(value);
+        if (value == null) return null;
+        Object mapValue = valueMap.get(value);
+        if(mapValue != null)
+            return mapValue;
+        return value;
     }
 
     @Override
