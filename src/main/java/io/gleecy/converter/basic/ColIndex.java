@@ -1,5 +1,7 @@
 package io.gleecy.converter.basic;
 
+import io.gleecy.converter.BasicConverter;
+
 import java.util.List;
 
 public class ColIndex extends BasicConverter {

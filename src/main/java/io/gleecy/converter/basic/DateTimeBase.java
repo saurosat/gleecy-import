@@ -1,9 +1,11 @@
 package io.gleecy.converter.basic;
 
+import io.gleecy.converter.BasicConverter;
+
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-public abstract class DateTimeBase extends BasicConverter{
+public abstract class DateTimeBase extends BasicConverter {
     protected DateTimeFormatter dateTimeFormatter = null;
 
     protected abstract Object parse(String valueStr);

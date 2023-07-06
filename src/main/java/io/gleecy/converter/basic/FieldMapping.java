@@ -1,5 +1,6 @@
 package io.gleecy.converter.basic;
 
+import io.gleecy.converter.BasicConverter;
 import org.moqui.entity.EntityList;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityFacadeImpl;
@@ -106,15 +107,20 @@ public class FieldMapping extends BasicConverter {
             key_val[0] = key_val[0].trim();
             if (key_val.length != 2 || key_val[0].isEmpty())
                 throw new IllegalArgumentException("Illegal Value mapping: " + config);
-            if (ENTITY_PREFIX.equals(key_val[0])) {
-                entityName = key_val[1];
-            } else if (MAP_FR_PREFIX.equals(key_val[0])) {
-                fromFieldName = key_val[1];
-            } else if (MAP_TO_PREFIX.equals(key_val[0])) {
-                toFieldName = key_val[1];
-            } else {
-                //TODO: validate key_val[0]: must be exactly a field name or an operator
-                conditionMap.put(key_val[0], key_val[1]);
+            switch (key_val[0]) {
+                case ENTITY_PREFIX:
+                    entityName = key_val[1];
+                    break;
+                case MAP_FR_PREFIX:
+                    fromFieldName = key_val[1];
+                    break;
+                case MAP_TO_PREFIX:
+                    toFieldName = key_val[1];
+                    break;
+                default:
+                    //TODO: validate key_val[0]: must be exactly a field name or an operator
+                    conditionMap.put(key_val[0], key_val[1]);
+                    break;
             }
         }
         return true;

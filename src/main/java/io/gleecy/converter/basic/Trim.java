@@ -1,5 +1,7 @@
 package io.gleecy.converter.basic;
 
+import io.gleecy.converter.BasicConverter;
+
 import java.util.List;
 
 public class Trim extends BasicConverter {
@@ -16,8 +18,6 @@ public class Trim extends BasicConverter {
             return false;
         }
         final int minIdx = PREFIX.length();
-        if (configStr.length() < minIdx || !configStr.startsWith(PREFIX))
-            return false;
-        return true;
+        return configStr.length() >= minIdx && configStr.startsWith(PREFIX);
     }
 }

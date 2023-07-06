@@ -54,7 +54,8 @@
         <field name="templateName" type="text-short" not-null="true"/>
         <field name="description" type="text-long" />
         <field name="entityName" type="text-medium" not-null="true"/>
-        <field name="fromRow" type="number-integer" not-null="true"/>
+        <field name="config" type="text-long" />
+        <field name="fromRow" type="number-integer"/>
         <field name="toRow" type="number-integer" />
         <field name="fromCol" type="number-integer" />
         <field name="toCol" type="number-integer" />

@@ -7,7 +7,6 @@ import org.moqui.util.ContextStack;
 
 import org.apache.commons.fileupload.FileItem;
 
-import java.io.IOException;
 import java.util.*;
 public class CsvImportServices {
     public static Map<String, Object> importCsv(ExecutionContext ec) {
@@ -48,6 +47,9 @@ public class CsvImportServices {
             return result;
         }
 
+        EntityValue userAcc = ec.getUser().getUserAccount();
+        EntityValue party = userAcc.findRelatedOne("Party", true, false);
+        party.setSequencedIdPrimary();
         TransactionFacade tf = efi.ecfi.transactionFacade;
         boolean beganTransaction = false;
         try {

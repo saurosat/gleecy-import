@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+    <!--
+    <default-property name="elasticsearch_url" value="https://127.0.0.1:9200"/>
+    <default-property name="elasticsearch_user" value="elastic"/>
+    <default-property name="elasticsearch_password" value="WX6VA*TLRCleYNwmX6xX"/>
+    <default-property name="elasticsearch_index_prefix" value=""/>
+     -->
+    <webapp-list>
+        <webapp name="webroot">
+            <after-login>
+                <actions>
+                    <log level="info" message="========================== after-login actions"/>
+                </actions>
+            </after-login>
+        </webapp>
+    </webapp-list>
     <screen-facade>
         <screen location="component://PopCommerce/screen/PopCommerceAdmin.xml">
             <subscreens-item name="CsvImport" menu-title="Import Data"

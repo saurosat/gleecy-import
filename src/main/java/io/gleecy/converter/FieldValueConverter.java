@@ -1,7 +1,5 @@
 package io.gleecy.converter;
 
-import io.gleecy.converter.basic.*;
-import io.gleecy.converter.basic.Date;
 import org.moqui.impl.entity.EntityFacadeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,23 +7,13 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.regex.Pattern;
 
-public class FieldValueConverter implements ValueConverter {
+public class FieldValueConverter extends BasicConverter {
     public static final Pattern CONFIG_DELIM = Pattern.compile("#{3}(?![^\\[\\]]*])"); //"###";
     public final static Logger logger = LoggerFactory.getLogger(FieldValueConverter.class);
-    static {
-        BasicConverter.register(ColIndex.PREFIX, ColIndex.class);
-        BasicConverter.register(DefaultValue.PREFIX, DefaultValue.class);
-        BasicConverter.register(Trim.PREFIX, Trim.class);
-        BasicConverter.register(ValueMapping.PREFIX, ValueMapping.class);
-        BasicConverter.register(io.gleecy.converter.basic.Date.PREFIX, Date.class);
-        BasicConverter.register(Time.PREFIX, Time.class);
-        BasicConverter.register(DateTime.PREFIX, DateTime.class);
-        BasicConverter.register(FieldMapping.PREFIX, FieldMapping.class);
-    }
 
-    protected LinkedList<ValueConverter> valueConverters = new LinkedList<>();
+    protected LinkedList<BasicConverter> valueConverters = new LinkedList<>();
     public FieldValueConverter(){ }
-    protected FieldValueConverter addConverter(ValueConverter converter) {
+    protected FieldValueConverter addConverter(BasicConverter converter) {
         if(converter != null) {
             valueConverters.add(converter);
         }
@@ -34,9 +22,7 @@ public class FieldValueConverter implements ValueConverter {
 
     @Override
     public Object convert(Object value, List<String> errors) {
-        for (Iterator<ValueConverter> itor = valueConverters.iterator();
-             itor.hasNext(); ){
-            ValueConverter converter = itor.next();
+        for (BasicConverter converter : valueConverters) {
             value = converter.convert(value, errors);
         }
         return value;
@@ -49,13 +35,13 @@ public class FieldValueConverter implements ValueConverter {
             return false;
         }
         String[] configs = CONFIG_DELIM.split(configStr);
-        for (int i = 0; i < configs.length; i++) {
-            String config = configs[i].trim();
-            if(config.isEmpty()) {
+        for (String s : configs) {
+            String config = s.trim();
+            if (config.isEmpty()) {
                 continue;
             }
-            ValueConverter converter = BasicConverter.newInstance(config);
-            if(converter == null) {
+            BasicConverter converter = ConverterRegistry.newInstance(config);
+            if (converter == null) {
                 String errMsg = "Illegal import configuration: " + config;
                 throw new IllegalArgumentException(errMsg);
             }
@@ -67,7 +53,7 @@ public class FieldValueConverter implements ValueConverter {
     @Override
     public boolean load(EntityFacadeImpl efi) {
         boolean result = true;
-        for(ValueConverter converter : valueConverters) {
+        for(BasicConverter converter : valueConverters) {
             result = result && converter.load(efi);
         }
         return result;
