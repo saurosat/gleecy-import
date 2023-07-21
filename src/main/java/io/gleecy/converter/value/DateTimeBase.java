@@ -1,12 +1,22 @@
-package io.gleecy.converter.basic;
+package io.gleecy.converter.value;
 
-import io.gleecy.converter.BasicConverter;
+import io.gleecy.converter.Converter;
+import org.moqui.impl.entity.EntityFacadeImpl;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-public abstract class DateTimeBase extends BasicConverter {
+public abstract class DateTimeBase extends Converter {
     protected DateTimeFormatter dateTimeFormatter = null;
+
+    public DateTimeBase(String configStr, EntityFacadeImpl efi) {
+        super(configStr, efi);
+        final int minIdx = prefix().length();
+        if (configStr.length() <= minIdx || !configStr.startsWith(prefix()))
+            initError = this.getClass().getName() + " expect a config starting with " + prefix();
+        else
+            this.dateTimeFormatter = DateTimeFormatter.ofPattern(configStr.substring(minIdx).trim());
+    }
 
     protected abstract Object parse(String valueStr);
 
@@ -15,7 +25,7 @@ public abstract class DateTimeBase extends BasicConverter {
     public abstract String prefix();
 
     @Override
-    public Object convert(Object value, List<String> errors) {
+    protected Object doConvert(Object value, List<String> errors) {
         if (value == null) return null;
         try {
             if (value instanceof CharSequence) {
@@ -28,18 +38,5 @@ public abstract class DateTimeBase extends BasicConverter {
             errors.add(e.getMessage());
         }
         return null;
-    }
-
-    @Override
-    public boolean initialize(String configStr) {
-        if (configStr == null) {
-            return false;
-        }
-
-        final int minIdx = prefix().length();
-        if (configStr.length() <= minIdx || !configStr.startsWith(prefix()))
-            return false;
-        this.dateTimeFormatter = DateTimeFormatter.ofPattern(configStr.substring(minIdx).trim());
-        return true;
     }
 }

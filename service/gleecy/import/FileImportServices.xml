@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
 
-    <service verb="importCsv" type="java" location="io.gleecy.service.CsvImportServices" method="importCsv">
+    <service verb="importFile" type="java" location="io.gleecy.service.FileImportServices" method="importFile">
         <in-parameters>
             <parameter name="templateId" required="true" type="String"/>
-            <parameter name="csvFile" type="org.apache.commons.fileupload.FileItem"/>
+            <parameter name="dataFiles" type="org.apache.commons.fileupload.FileItem"/>
         </in-parameters>
     </service>
     <!--<service verb="save" noun="Csv">
         <in-parameters>
             <parameter name="productContentId" required="true"/>
             <parameter name="productId" required="true"/>
-            <parameter name="contentFile" type="org.apache.commons.fileupload.FileItem" required="true"/>
+            <parameter name="dataFile" type="org.apache.commons.fileupload.FileItem" required="true"/>
             <parameter name="saveContentLocation" type="Boolean" default="true"/>
         </in-parameters>
         <out-parameters><parameter name="contentLocation"/></out-parameters>
         <actions>
-            <set field="filename" from="contentFile.getName()"/>
+            <set field="filename" from="dataFile.getName()"/>
             <if condition="org.moqui.resource.ResourceReference.isTextFilename(filename)"><then>
                 <set field="contentRoot" from="ec.user.getPreference('mantle.content.root') ?: 'dbresource://mantle/content'"/>
             </then><else>
@@ -26,7 +26,7 @@
 
             <set field="docRr" from="ec.resource.getLocationReference(contentLocation)"/>
             <script>
-                fileStream = contentFile.getInputStream()
+                fileStream = dataFile.getInputStream()
                 try { docRr.putStream(fileStream) } finally { fileStream.close() }
             </script>
 

@@ -1,12 +1,14 @@
-package io.gleecy.converter.basic;
+package io.gleecy.converter.value;
+
+import org.moqui.impl.entity.EntityFacadeImpl;
 
 import java.time.LocalTime;
 
 public class Time extends DateTimeBase {
     public static final String PREFIX = "TIME_FORMAT ";
 
-    Time() {
-        super();
+    public Time(String configStr, EntityFacadeImpl efi) {
+        super(configStr, efi);
     }
 
     @Override

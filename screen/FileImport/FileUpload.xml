@@ -3,9 +3,9 @@
         default-menu-title="Upload CSV File" default-menu-index="2">
     <parameter name="templateId" required="false" />
     <transition name="uploadCsvFile">
-        <parameter name="csvFile" required="true" />
+        <parameter name="dataFiles" required="true" />
         <parameter name="templateId" required="true" />
-        <service-call name="gleecy.import.CsvImportServices.importCsv" out-map="resultMap"/>
+        <service-call name="gleecy.import.FileImportServices.importFile" out-map="resultMap"/>
         <default-response url="."/>
     </transition>
 
@@ -23,7 +23,7 @@
                     </drop-down>
                 </default-field>
             </field>
-            <field name="csvFile"><default-field title="Upload CSV"><file/></default-field></field>
+            <field name="dataFiles"><default-field title="Upload CSV"><file multiple="true"/></default-field></field>
             <field name="submitButton"><default-field title="Upload"><submit/></default-field></field>
         </form-single>
         </row-col>

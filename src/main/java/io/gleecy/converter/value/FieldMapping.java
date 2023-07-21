@@ -1,6 +1,8 @@
-package io.gleecy.converter.basic;
+package io.gleecy.converter.value;
 
-import io.gleecy.converter.BasicConverter;
+import io.gleecy.converter.Converter;
+import io.gleecy.util.ObjectUtil;
+import org.moqui.entity.EntityFind;
 import org.moqui.entity.EntityList;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityFacadeImpl;
@@ -12,12 +14,12 @@ import java.util.Map;
 /**
  * Search Field value of pre-defined entity (entityName.toFieldName) by comparing cell value with the
  * value in entityName.fromFieldName <br>
- * Related entities is preloaded using configured conditions <br>
+ * Related entities of Enum tables is preloaded using configured conditions <br>
  * Example: following configuration will search column Description in Enumeration table by CSV cell value at column AA, then return the enumId: <br>
- * ###COL AA ###FIELD_MAPPING ##_entity:moqui.basic.Enumeration ##FR:description ##TO:enumId ##_comp:equals ##enumTypeId:ProductType
+ * ###COL AA ###FIELD_MAPPING ##_entity:moqui.basic.Enumeration ##_from:description ##_to:enumId ##_comp:equals ##enumTypeId:ProductType
  */
-public class FieldMapping extends BasicConverter {
-    public static final String PREFIX = "FIELD_MAPPING ";
+public class FieldMapping extends Converter {
+    public static final String PREFIX = "FIELD_MAPPING";
     public static final String ENTITY_PREFIX = "_entity";
     public static final String MAP_FR_PREFIX = "_from";
     public static final String MAP_TO_PREFIX = "_to";
@@ -58,51 +60,63 @@ public class FieldMapping extends BasicConverter {
         return sbKey.toString();
     }
 
-    String entityName = null;
-    String fromFieldName = null;
-    String toFieldName = null;
-    Map<String, String> fieldValueMap = new HashMap<>();
-    Map<String, Object> conditionMap = new HashMap<>();
-
-    FieldMapping() {
+    public FieldMapping(String configStr, EntityFacadeImpl efi) {
+        super(configStr, efi);
+        initError = initialize();
     }
+    private String entityName = null;
+    private String fromFieldName = null;
+    private String toFieldName = null;
+    private boolean preCached = false;
+    private final Map<String, String> fieldValueMap = new HashMap<>();
+    private final Map<String, Object> conditionMap = new HashMap<>();
 
-    public FieldMapping addEntity(EntityValue entity) {
+    public FieldMapping addToMappingCache(EntityValue entity) {
         String from = getKey(entity.getString(fromFieldName));
         fieldValueMap.put(from, entity.getString(toFieldName));
         return this;
     }
 
-    public FieldMapping addEntities(EntityList entities) {
+    public FieldMapping addToMappingCache(EntityList entities) {
         for (EntityValue entity : entities) {
-            this.addEntity(entity);
+            this.addToMappingCache(entity);
         }
         return this;
     }
 
     @Override
-    public Object convert(Object fromValue, List<String> errors) {
-        fromValue = BasicConverter.trimToNull(fromValue);
+    protected Object doConvert(Object fromValue, List<String> errors) {
+        fromValue = ObjectUtil.trimToNull(fromValue);
         if (fromValue == null)
             return null;
-        return fieldValueMap.get(getKey(fromValue.toString()));
+        if(!fieldValueMap.isEmpty()) //pre-cached:
+            return fieldValueMap.get(getKey(fromValue.toString()));
+        EntityFind query = efi.find(entityName).
+                selectField(fromFieldName).
+                selectField(toFieldName).
+                condition(fromFieldName, fromValue);
+        if(!conditionMap.isEmpty()) {
+            query.condition(conditionMap);
+        }
+        EntityList entityList = query.list();
+        if(entityList.isEmpty()) {
+            return null;
+        }
+        return entityList.getFirst().get(toFieldName);
     }
 
-    @Override
-    public boolean initialize(String configStr) {
-        if (configStr == null)
-            return false;
+    protected String initialize() {
         final int minIdx = PREFIX.length();
         if (configStr.length() <= minIdx || !configStr.startsWith(PREFIX))
-            return false;
+            return this.getClass().getName() + " expect a config starting with " + PREFIX;
 
-        String[] configs = BasicConverter.ENTRY_DELIM.split(configStr.substring(minIdx));
+        String[] configs = Converter.ENTRY_DELIM.split(configStr.substring(minIdx));
         for (String config : configs) {
             config = config.trim();
             if (config.isEmpty())
                 continue;
 
-            String[] key_val = BasicConverter.KEY_VAL_DELIM.split(config);
+            String[] key_val = Converter.KEY_VAL_DELIM.split(config);
             //System.out.println(key_val[0] + ": " + key_val[1]);
             key_val[0] = key_val[0].trim();
             if (key_val.length != 2 || key_val[0].isEmpty())
@@ -123,16 +137,21 @@ public class FieldMapping extends BasicConverter {
                     break;
             }
         }
-        return true;
+        if (efi == null) {
+            return this.getClass().getName() + " expect a not-null EntityFacadeImpl instance";
+        }
+        preCached = entityName.equals("moqui.basic.Enumeration");
+        if(preCached) { //pre-cache
+            EntityList entityList = efi.find(entityName).condition(conditionMap)
+                    .selectField(fromFieldName)
+                    .selectField(toFieldName)
+                    .useCache(true).list();
+            this.addToMappingCache(entityList);
+        }
+        return null;
     }
 
-    @Override
-    public boolean load(EntityFacadeImpl efi) {
-        if (efi == null) {
-            return false;
-        }
-        EntityList entityList = efi.find(entityName).condition(conditionMap).useCache(true).list();
-        this.addEntities(entityList);
-        return true;
+    public static void main(String[] args) {
+
     }
 }

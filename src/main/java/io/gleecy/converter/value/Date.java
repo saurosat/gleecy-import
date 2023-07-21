@@ -1,15 +1,17 @@
-package io.gleecy.converter.basic;
+package io.gleecy.converter.value;
+
+import org.moqui.impl.entity.EntityFacadeImpl;
 
 import java.time.LocalDate;
 
-public class Date extends DateTimeBase {
+ public class Date extends DateTimeBase {
     public static final String PREFIX = "DATE_FORMAT ";
 
-    Date() {
-        super();
-    }
+     public Date(String configStr, EntityFacadeImpl efi) {
+         super(configStr, efi);
+     }
 
-    @Override
+     @Override
     public String prefix() {
         return PREFIX;
     }

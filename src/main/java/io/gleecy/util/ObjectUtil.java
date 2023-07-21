@@ -1,20 +1,11 @@
-package io.gleecy.converter;
-
-import org.moqui.impl.entity.EntityFacadeImpl;
+package io.gleecy.util;
 
 import java.lang.reflect.Array;
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 
-public abstract class BasicConverter {
-    public static final Pattern ENTRY_DELIM = Pattern.compile("#{2}(?![^\\[\\]]*])");  //"##";
-    public static final Pattern KEY_VAL_DELIM = Pattern.compile(":{1}(?![^\\[\\]]*])"); //":";
-    protected BasicConverter() {}
-    public abstract Object convert(Object value, List<String> errors);
-    public abstract boolean initialize(String configStr);
-    public boolean load(EntityFacadeImpl efi) { //To be override
-        return true;
-    }
+public class ObjectUtil {
     public static Object trimToNull(Object value) {
         if(value == null) return null;
         if(value instanceof CharSequence) {

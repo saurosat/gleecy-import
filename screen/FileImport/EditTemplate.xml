@@ -64,7 +64,8 @@
             EntityDefinition ed = efi.getEntityDefinition(template.entityName)
             List nonPkFNames = ed.getNonPkFieldNames()
             nonPkFNames.remove("lastUpdatedStamp")
-            fieldNames.addAll(nonPkFNames.findAll { !configuredFieldNames.contains(it) })
+            //fieldNames.addAll(nonPkFNames.findAll { !configuredFieldNames.contains(it) })
+            fieldNames.addAll(nonPkFNames)
         </script>
     </actions>
 

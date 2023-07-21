@@ -1,7 +1,10 @@
 package io.gleecy.service;
 
-import io.gleecy.converter.FieldValueConverter;
-import org.moqui.context.*;
+import io.gleecy.converter.FieldConverter;
+import org.moqui.context.ExecutionContext;
+import org.moqui.context.MessageFacade;
+import org.moqui.context.NotificationMessage;
+import org.moqui.context.TransactionFacade;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityDefinition;
 import org.moqui.impl.entity.EntityFacadeImpl;
@@ -52,17 +55,9 @@ public class TemplateServices {
             messages.addError("Field '" + fieldName + "' is not a valid field of entity '" + entityName + "'");
             return result;
         }
-        FieldValueConverter fvConverter = new FieldValueConverter();
-        boolean isConfigValid = false;
-        try {
-            isConfigValid = fvConverter.initialize(config);
-            isConfigValid = isConfigValid && fvConverter.load(efi);
-        } catch (IllegalArgumentException e) {
-            messages.addError(e.getMessage());
-            return result;
-        }
-        if(!isConfigValid) {
-            messages.addError("Cannot parse and load Field Import Configuration");
+        FieldConverter fvConverter = new FieldConverter(config, efi);
+        if(fvConverter.initError != null) {
+            messages.addError("Cannot parse and load Field Import Configuration: " + fvConverter.initError);
             return result;
         }
 

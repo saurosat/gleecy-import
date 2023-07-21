@@ -18,13 +18,8 @@
     </webapp-list>
     <screen-facade>
         <screen location="component://PopCommerce/screen/PopCommerceAdmin.xml">
-            <subscreens-item name="CsvImport" menu-title="Import Data"
-                             location="component://DataImport/screen/CsvImport.xml" />
-        </screen>
-        <screen location="component://SimpleScreens/screen/SimpleScreens/Catalog/Product.xml">
-            <subscreens-item name="ProductCSVImport"  menu-title="Import frCSV" menu-include="true" menu-index="7"
-                             location="component://DataImport/screen/ProductCSVImport.xml" />
-
+            <subscreens-item name="FileImport" menu-title="Import Data"
+                             location="component://DataImport/screen/FileImport.xml" />
         </screen>
     </screen-facade>
 </moqui-conf>
