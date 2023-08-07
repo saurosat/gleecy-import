@@ -1,52 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
-    <entity entity-name="ProductTemplate" package="gleecy.import">
-        <field name="templateId" type="id" is-pk="true"/>
-        <field name="templateOwnerPartyId" type="id" enable-audit-log="update" default="'_NA_'">
-            <description>Brand or other organization that owns this template</description></field>
-        <field name="templateName" type="text-short" />
-        <field name="fromRow" type="number-integer"/>
-        <field name="toRow" type="number-integer" />
-        <field name="fromCol" type="number-integer" />
-        <field name="toCol" type="number-integer" />
-
-        <field name="pseudoId" type="text-long"  />
-        <field name="productTypeEnumId" type="text-long"/>
-        <field name="productClassEnumId" type="text-long"/>
-        <field name="assetTypeEnumId" type="text-long"/>
-        <field name="assetClassEnumId" type="text-long"/>
-        <field name="statusId" type="text-long"/>
-        <field name="ownerPartyId" type="text-long" >
-            <description>Brand or other organization that owns the product design, IP, etc.
-                There may be multiple suppliers, manufacturers, etc for a product but only one that 'owns' it.</description></field>
-
-        <field name="productName" type="text-long"/>
-        <field name="description" type="text-long"/>
-        <field name="comments" type="text-long"/>
-
-        <field name="salesIntroductionDate" type="text-long"/>
-        <field name="salesDiscontinuationDate" type="text-long"/>
-        <field name="salesDiscWhenNotAvail" type="text-long"/>
-        <field name="supportDiscontinuationDate" type="text-long"/>
-
-        <field name="requireInventory" type="text-long"/>
-        <field name="chargeShipping" type="text-long"><description>Set to N to not charge shipping (ie defaults to Y)</description></field>
-        <field name="signatureRequiredEnumId" type="text-long"/>
-        <field name="shippingInsuranceReqd" type="text-long"/>
-        <field name="inShippingBox" type="text-long"/>
-        <field name="defaultShipmentBoxTypeId" type="text-long"/>
-        <field name="taxable" type="text-long"><description>Set to N to not charge sales tax (ie defaults to Y)</description></field>
-        <field name="taxCode" type="text-long"><description>A code representing the tax category of the product,
-            passed to the tax calculation gateway.</description></field>
-        <field name="returnable" type="text-long"/>
-
-        <field name="amountUomId" type="text-long"/>
-        <field name="amountFixed" type="text-long"><description>For products with fixed amounts such as gift certificate amounts, rope lengths, etc.</description></field>
-        <field name="amountRequire" type="text-long"><description>Require an amount in addition to quantity on orders/etc.</description></field>
-
-        <field name="originGeoId" type="text-long"/>
-    </entity>
     <entity entity-name="ImportTemplate" package="gleecy.import">
         <field name="templateId" type="id" is-pk="true"/>
         <field name="pseudoId" type="text-short" default="templateId" not-null="true"/>
