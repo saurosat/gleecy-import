@@ -6,7 +6,8 @@
         <parameter name="dataFiles" required="true" />
         <parameter name="templateId" required="true" />
         <service-call name="gleecy.import.FileImportServices.importFile" out-map="resultMap"/>
-        <default-response url="."/>
+        <conditional-response url="."><condition><expression>result</expression></condition></conditional-response>
+        <default-response type="none"/>
     </transition>
 
     <widgets>

@@ -1,6 +1,8 @@
 package io.gleecy.converter;
 
 import io.gleecy.converter.value.ColIndex;
+import io.gleecy.db.DBWorker;
+import org.moqui.entity.EntityFind;
 import org.moqui.entity.EntityList;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.entity.EntityFacadeImpl;
@@ -48,6 +50,7 @@ public class EntityConverter extends Converter{
         template = tobeCloned.template;
         entityName = tobeCloned.entityName;
         fromRow = tobeCloned.fromRow;
+        toRow = tobeCloned.toRow;
         toCol = tobeCloned.toCol;
         fromCol = tobeCloned.fromCol;
         toCol = tobeCloned.toCol;
@@ -83,24 +86,68 @@ public class EntityConverter extends Converter{
             return null;
         }
         if (value.getClass().isArray()) {
-            Object[] vals = (Object[]) value;
-            EntityValue entity = commonValues.cloneValue();
-            entity.setSequencedIdPrimary();
+            String[] vals = (String[]) value;
+            Map<String, Object> paramMap = new HashMap<>();
+            String colPrefix = ColIndex.PREFIX.trim();
+            for(int i = 0; i < vals.length; i++) {
+                paramMap.put(colPrefix + "_" + i, vals[i]);
+            }
 
+            Map<String, Object> fValMap = new HashMap<>();
             for(FieldConverter fieldConverter : specificConverters) {
                 Object val = fieldConverter.convert(vals, errors);
-                if(val != null)
-                    entity.set(fieldConverter.fieldName, val);
-            }
-            Map<String, Object> paramMap = new HashMap<>();
-            paramMap.putAll(entity);
-            for(int i = 0; i < vals.length; i++) {
-                paramMap.put(ColIndex.PREFIX.trim() + "_" + i, vals[i]);
+                if(val != null) {
+                    fValMap.put(fieldConverter.fieldName, val);
+                    paramMap.put(fieldConverter.fieldName, val);
+                }
             }
             for(FieldConverter fieldConverter : map2StringConverters) {
                 Object val = fieldConverter.convert(paramMap, errors);
-                if(val != null)
-                    entity.set(fieldConverter.fieldName, val);
+                if(val != null) {
+                    fValMap.put(fieldConverter.fieldName, val);
+                    paramMap.put(fieldConverter.fieldName, val);
+                }
+            }
+
+            EntityValue entity = null;
+            String pseudoId = (String) fValMap.get("pseudoId");
+            if(pseudoId != null) {
+                EntityFind finder = this.efi.find(this.entityName).forUpdate(true).
+                        condition("pseudoId", pseudoId);
+                String ownerPartyId = (String) fValMap.get("ownerPartyId");
+                if(ownerPartyId != null) {//check if ownerPartyId exists
+                    if (this.efi.fastFindOne("mantle.party.Party",
+                            true, true, ownerPartyId) == null) {
+                        errors.add("Refer to an unknown partyId in field ownerPartyId = " + ownerPartyId);
+                        return null;
+                    }
+                }
+                if(ownerPartyId == null) {
+                    ownerPartyId = this.efi.ecfi.getEci().getUser().getTenantId();
+                }
+                if(ownerPartyId == null) {
+                    ownerPartyId = "_NA_";
+                }
+                finder.condition("ownerPartyId", ownerPartyId);
+                EntityList entities = finder.list();
+                if(!entities.isEmpty()) {
+                    entity = entities.get(0);
+                    //entity.setAll(this.commonValues);
+                }
+            }
+            if(entity != null) { //from DB
+                //Check if any field changed:
+                int numFieldChanges = setFieldValues(entity, this.commonValues.getEtlValues(), this.commonConverters);
+                numFieldChanges += setFieldValues(entity, fValMap, this.specificConverters);
+                numFieldChanges += setFieldValues(entity, fValMap, this.map2StringConverters);
+                if(numFieldChanges == 0) {
+                    errors.add("Ignored. Entity ID '" + pseudoId + "' already exists in DB with exact values");
+                    return null;
+                }
+            } else {
+                entity = commonValues.cloneValue();
+                entity.setAll(fValMap);
+                entity.setSequencedIdPrimary();
             }
             return entity;
         }
@@ -108,6 +155,20 @@ public class EntityConverter extends Converter{
         errors.add( "EntityConverter: Parameter must be a String or array, but it is "
                 + value.getClass().getName());
         return null;
+    }
+    protected int setFieldValues(EntityValue dbEntity, Map<String, Object> newValMap,
+                                     Collection<FieldConverter> fConverters) {
+        int numFieldChanges = 0;
+        for(FieldConverter fieldConverter : fConverters) {
+            String fName = fieldConverter.fieldName;
+            Object newVal = newValMap.get(fName);
+            Object dbVal = dbEntity.getNoCheckSimple(fName);
+            if(newVal != null && (dbVal == null || !dbVal.equals(newVal))) {
+                dbEntity.set(fName, newVal);
+                numFieldChanges++;
+            }
+        }
+        return numFieldChanges;
     }
 
     protected String initialize() {

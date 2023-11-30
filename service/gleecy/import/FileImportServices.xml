@@ -6,6 +6,9 @@
             <parameter name="templateId" required="true" type="String"/>
             <parameter name="dataFiles" type="org.apache.commons.fileupload.FileItem"/>
         </in-parameters>
+        <out-parameters>
+            <parameter name="result" />
+        </out-parameters>
     </service>
     <!--<service verb="save" noun="Csv">
         <in-parameters>

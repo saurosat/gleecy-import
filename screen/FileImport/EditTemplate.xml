@@ -15,6 +15,10 @@
         <parameter name="pseudoId" required="true" />
         <parameter name="templateName" required="true"/>
         <parameter name="entityName" required="true" />
+        <parameter name="fromRow" />
+        <parameter name="toRow" />
+        <parameter name="fromCol" />
+        <parameter name="toCol" />
         <actions>
             <if condition="templateId.isEmpty()">
                 <return error="true" message="Unknown Template Id" />
@@ -62,7 +66,7 @@
 
             EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity()
             EntityDefinition ed = efi.getEntityDefinition(template.entityName)
-            List nonPkFNames = ed.getNonPkFieldNames()
+            List nonPkFNames = ed.getAllFieldNames()
             nonPkFNames.remove("lastUpdatedStamp")
             //fieldNames.addAll(nonPkFNames.findAll { !configuredFieldNames.contains(it) })
             fieldNames.addAll(nonPkFNames)

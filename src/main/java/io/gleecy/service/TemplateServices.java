@@ -49,7 +49,7 @@ public class TemplateServices {
             messages.addError("Cannot find defined entity with name: " + entityName);
             return result;
         }
-        ArrayList<String> fieldNames = ed.getNonPkFieldNames();
+        ArrayList<String> fieldNames = ed.getAllFieldNames();
         fieldNames.remove("lastUpdatedStamp");
         if(!fieldNames.contains(fieldName)) {
             messages.addError("Field '" + fieldName + "' is not a valid field of entity '" + entityName + "'");

@@ -3,6 +3,7 @@ package io.gleecy.parser;
 import io.gleecy.converter.EntityConverter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.moqui.entity.EntityValue;
 import org.slf4j.Logger;
@@ -29,7 +30,19 @@ public class CsvParser extends BaseParser{
     public char csvCommentStart() { return '#'; }
     public char csvQuoteChar() { return '"'; }
 
-    public List<EntityValue> parseItems(String fileName, InputStream is, List<String> errors) {
+    public List<EntityValue> parse(String fileName, InputStream is, StringBuilder errors) {
+        if(entityConverter.hasCommonConfigs()) {
+            String fileNameConfig = fileName.substring(0, fileName.lastIndexOf('.'));
+            ArrayList<String> errs = new ArrayList<>();
+            entityConverter.convert(fileNameConfig, errs);
+            if(!errs.isEmpty()) {
+                for(String err : errs) {
+                    errors.append("\n").append(err);
+                }
+                return null;
+            }
+        }
+
         List<EntityValue> eList = new ArrayList<>();
         InputStreamReader isReader = null;
         BufferedReader bufReader = null;
@@ -37,7 +50,8 @@ public class CsvParser extends BaseParser{
         try {
             isReader = new InputStreamReader(is, StandardCharsets.UTF_8);
             bufReader = new BufferedReader(isReader);
-
+            /*CSVPrinter printer = new CSVPrinter(null, null);
+            printer.printRecord( new String[]{});*/
             CSVParser parser = CSVFormat.newFormat(csvDelimiter())
                     .withCommentMarker(csvCommentStart())
                     .withQuote(csvQuoteChar())
@@ -48,17 +62,19 @@ public class CsvParser extends BaseParser{
             Iterator<CSVRecord> itor = parser.iterator();
             int rowIdx = 0;
             for (; rowIdx < entityConverter.getFromRow() && itor.hasNext(); rowIdx++) {
-                itor.next();
+                CSVRecord record = itor.next();
+                String[] rowValues = record.toList().toArray(new String[0]);
+                ignoreArray(fileName, rowValues);
             }
             for (; rowIdx < entityConverter.getToRow() && itor.hasNext(); rowIdx++) {
                 CSVRecord record = itor.next();
                 String[] rowValues = record.toList().toArray(new String[0]);
-                EntityValue entity = parseArray(rowValues, errors);
+                EntityValue entity = parseArray(fileName, rowValues, errors);
                 eList.add(entity);
             }
         } catch (IOException e) {
             String error = "Cannot read file from input stream: " + e.getMessage();
-            errors.add(error);
+            errors.append(error);
             LOGGER.error(error, e);
         } /*finally {
             if(bufReader != null) try {

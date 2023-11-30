@@ -1,18 +1,22 @@
 package io.gleecy.parser;
 
 import io.gleecy.converter.EntityConverter;
+import io.gleecy.db.DBWorker;
 import org.moqui.entity.EntityValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 public class BaseParser {
     public static final Logger LOGGER = LoggerFactory.getLogger(BaseParser.class);
     public static final String TOKEN_DELIM = "__";
     protected EntityConverter entityConverter;
+    public DBWorker dbWorker = null;
 
     private BaseParser() {
         entityConverter = null;
@@ -29,49 +33,39 @@ public class BaseParser {
      * @param errors
      * @return
      */
-    public final List<EntityValue> parse(String fileName, InputStream is, List<String> errors) {
-        if(entityConverter.hasCommonConfigs()) {
-            String fileNameConfig = fileName.substring(0, fileName.lastIndexOf('.'));
-            entityConverter.convert(fileNameConfig, errors);
+    public List<EntityValue> parse(String fileName, InputStream is, StringBuilder errors) {
+        String[] fieldValues = fileName.trim().split(TOKEN_DELIM);
+        EntityValue entity = parseArray(fileName, fieldValues, errors);
+        return Collections.singletonList(entity);
+    }
+
+    protected EntityValue parseArray(String fileName, String[] fieldValues, StringBuilder errors) {
+        ArrayList<String> errs = new ArrayList<>();
+        EntityValue entity = (EntityValue) entityConverter.convert(fieldValues, errs);
+        if(dbWorker != null) {
+            ArrayList<String> rowVals = new ArrayList<>() {
+                {add(fileName); add(null);addAll(List.of(fieldValues));}
+            };
+            if(errs.isEmpty()) {
+                dbWorker.submit(rowVals, entity);
+            } else {
+                rowVals.set(1, errs.get(0));
+                dbWorker.addResult(rowVals);
+            }
+        } else if(!errs.isEmpty()) {
+            for(String err : errs) {
+                errors.append("\n").append(err);
+            }
+            return null;
         }
-        return parseItems(fileName, is, errors);
+        return entity;
     }
-
-    /**
-     * Parse file to create entity without updating common values
-     * For use with file that has only one entity
-     * Entities' information is parsed from file name.
-     * Override this method to support other file type
-     * @param fileName
-     * @param is
-     * @param errors
-     * @return
-     */
-    public EntityValue parseItem(String fileName, InputStream is, List<String> errors) {
-        fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-        return parseString(fileName, errors);
-    }
-
-    /**
-     * Parse file to create entities without updating common values
-     * Entities' information is parsed from file name.
-     * Override this method to support other file type
-     * @param fileName
-     * @param is
-     * @param errors
-     * @return
-     */
-    protected List<EntityValue> parseItems(String fileName, InputStream is, List<String> errors) {
-        List<EntityValue> entities = new ArrayList<>();
-        entities.add(parseItem(fileName, is, errors));
-        return entities;
-    }
-
-    protected EntityValue parseArray(String[] fieldValues, List<String> errors) {
-        return (EntityValue) entityConverter.convert(fieldValues, errors);
-    }
-    protected EntityValue parseString(String fieldValuesStr, List<String> errors) {
-        String[] fieldValues = fieldValuesStr.trim().split(TOKEN_DELIM);
-        return parseArray(fieldValues, errors);
+    protected void ignoreArray(String fileName, String[] fieldValues) {
+        if(dbWorker != null) {
+            ArrayList<String> rowVals = new ArrayList<>() {
+                {add(null); add(null);addAll(List.of(fieldValues));}
+            };
+            dbWorker.setHeader(rowVals);
+        }
     }
 }

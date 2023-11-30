@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Syntax: [ConfigType]###[Template]###[SequenceNumber]###[COLINDEX config]###[DEFAULT config]... <br>
+ * Syntax: [SequenceNumber]###[ConfigType] [Template]###[COLINDEX config]###[DEFAULT config]... <br>
  * ConfigType can be one of: COMMON, SPECIFIC and MAP2STRING <br>
  * In case of MAP2STRING, the next config token must be a String template to <br>
  * format a string using value from input map

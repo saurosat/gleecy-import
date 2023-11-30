@@ -3,7 +3,11 @@
 <screen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/xml-screen-3.xsd">
     <transition name="deleteTemplate">
         <parameter name="templateId" required="true" />
-        <service-call name="delete#gleecy.import.ImportTemplate" />
+        <parameter name="fieldName" value="*" />
+        <actions>
+            <service-call name="delete#gleecy.import.FieldConfig" in-map="[templateId:templateId, fieldName:fieldName]" />
+            <service-call name="delete#gleecy.import.ImportTemplate" in-map="[templateId:templateId]" />
+        </actions>
         <default-response url="."/>
     </transition>
     <transition name="createTemplate">

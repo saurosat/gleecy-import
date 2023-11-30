@@ -1,8 +1,11 @@
 package io.gleecy.service;
 
 import io.gleecy.converter.EntityConverter;
+import io.gleecy.db.DBWorker;
 import io.gleecy.parser.BaseParser;
 import io.gleecy.parser.CsvParser;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.fileupload.FileItem;
 import org.moqui.context.*;
 import org.moqui.entity.EntityValue;
@@ -12,116 +15,64 @@ import org.moqui.util.ContextStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.PrintWriter;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class FileImportServices {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileImportServices.class);
 
-    private static boolean saveEntity(ExecutionContext ec, EntityValue entity, InputStream is
-            , String ownerPartyId) {
-        EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity();
-        UserFacade uf = ec.getUser();
-        ResourceFacade rf = ec.getResource();
-        if(entity.isField("ownerPartyId") && entity.get("ownerPartyId") == null) {
-            if(entity.containsKey("ownerPartyId"))
-                entity.set("ownerPartyId", ownerPartyId);
-        }
-        if(entity.isField("contentDate")) {
-            entity.set("contentDate", uf.getNowTimestamp());
-        }
-        if(entity.isField("userId")) {
-            entity.set("userId", uf.getUserId());
-        }
-
-        String contentRoot = uf.getPreference("mantle.content.large.root").trim();
-        String contentLocation = entity.getString("contentLocation");
-        if(contentLocation != null && !contentLocation.startsWith(contentRoot)) {
-            contentLocation = contentRoot + contentLocation.trim();
-            entity.set("contentLocation", contentLocation);
-        }
-        TransactionFacade tf = efi.ecfi.transactionFacade;
-        boolean beganTransaction = false;
-        try {
-            beganTransaction = tf.begin(100);
-            entity.create();
-            if (contentLocation != null) {
-                ResourceReference rRef = rf.getLocationReference(contentLocation);
-                rRef.putStream(is);
-            }
-            tf.commit(beganTransaction);
-            return true;
-        } catch (Exception e) {
-            LOGGER.error("Failed to save entities.", e);
-            tf.rollback(beganTransaction, "Error loading entity data from file", e);
+    private static boolean saveResource(ExecutionContext ec, EntityValue entity, InputStream is, String fileName) {
+        if (is == null || entity == null || !entity.isField("contentLocation")) {
             return false;
         }
-    }
-    private static boolean saveEntities(ExecutionContext ec, List<EntityValue> entityValues, InputStream is
-            , String ownerPartyId) {
-        EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity();
-        UserFacade uf = ec.getUser();
-        ResourceFacade rf = ec.getResource();
-        for (EntityValue entity : entityValues) {
-            if(entity.isField("ownerPartyId") && entity.get("ownerPartyId") == null) {
-                if(entity.containsKey("ownerPartyId"))
-                    entity.set("ownerPartyId", ownerPartyId);
+        String contentRoot = ec.getUser().getPreference("mantle.content.large.root").trim();
+        if(!contentRoot.endsWith("/")) {
+            contentRoot = contentRoot + "/";
+        }
+        String contentLocation = (String) entity.getNoCheckSimple("contentLocation");
+        if(contentLocation == null) {
+            contentLocation = contentRoot;
+        } else {
+            contentLocation = contentLocation.trim();
+            if (!contentLocation.endsWith("/")) {
+                contentLocation = contentLocation + "/";
             }
-            if(entity.isField("contentDate")) {
-                entity.set("contentDate", uf.getNowTimestamp());
-            }
-            if(entity.isField("userId")) {
-                entity.set("userId", uf.getUserId());
-            }
-
-            String contentRoot = uf.getPreference("mantle.content.large.root").trim();
-            if(entity.isField("contentLocation")) {
-                String contentLocation = entity.getString("contentLocation");
-                if (contentLocation != null && !contentLocation.startsWith(contentRoot)) {
-                    contentLocation = contentRoot + contentLocation.trim();
-                    entity.set("contentLocation", contentLocation);
+            if(!contentLocation.startsWith(contentRoot)) {
+                String[] paths = contentLocation.split("/");
+                StringBuilder sb = new StringBuilder(contentRoot);
+                for(int i = 0; i < paths.length; i++) {
+                    if(paths[i] == null || paths[i].isBlank()) {
+                        continue;
+                    }
+                    sb.append(paths[i].trim()).append("/");
                 }
+                contentLocation = sb.toString();
             }
         }
 
-        TransactionFacade tf = efi.ecfi.transactionFacade;
-        boolean beganTransaction = false;
-        try {
-            beganTransaction = tf.begin(100);
-            efi.createBulk(entityValues);
-            for (EntityValue entity : entityValues) {
-                if(!entity.isField("contentLocation")) {
-                    break; //All entities are same type
-                }
-                String contentLocation = entity.getString("contentLocation");
-                if (contentLocation != null) {
-                    ResourceReference rRef = rf.getLocationReference(contentLocation);
-                    rRef.putStream(is);
-                }
-            }
-            tf.commit(beganTransaction);
-            return true;
-        } catch (Exception e) {
-            LOGGER.error("Failed to save entities.", e);
-            tf.rollback(beganTransaction, "Error loading entity data from file", e);
-            return false;
-        }
+        //Add content fileName. The file name will be as [ID Hash].[Original file name]
+        contentLocation = contentLocation + Integer.toHexString(entity.getPrimaryKeysString().hashCode())
+                + "." + fileName;
+        entity.put("contentLocation", contentLocation);
+        ResourceReference rRef = ec.getResource().getLocationReference(contentLocation);
+        rRef.putStream(is);
+        return true;
     }
+
+    /**
+     * Java implementation of FileImportService.xml. Called by Moqui.
+     * @param ec passed in by Moqui
+     * @return a map from string value "list" to a list of entities
+     */
     public static Map<String, Object> importFile(ExecutionContext ec) {
-        //TODO: not tested yet
         final ContextStack cs = ec.getContext();
         final MessageFacade messages = ec.getMessage();
-        final UserFacade uf = ec.getUser();
-        final ResourceFacade rf = ec.getResource();
         final EntityFacadeImpl efi = (EntityFacadeImpl) ec.getEntity();
-
-        final EntityValue userAcc = uf.getUserAccount();
 
         final List<EntityValue> entityList = new ArrayList<>();
         final Map<String, Object> result = new HashMap<>();
@@ -139,7 +90,7 @@ public class FileImportServices {
         } else if(data instanceof List) {
             dataFiles = (List<FileItem>) data;
         }
-        if(dataFiles == null || dataFiles.isEmpty()) {
+        if(dataFiles.isEmpty()) {
             messages.addError(new ValidationError("dataFile", "Not any data file uploaded", null));
         }
 
@@ -154,17 +105,15 @@ public class FileImportServices {
             return result;
         }
 
-        final EntityValue party = userAcc.findRelatedOne("Party", true, false);
-        final String ownerPartyId = (party != null) ? party.getString("partyId") : null;
-
+        DBWorker dbWorker = new DBWorker(ec, 5, 3);
         for (FileItem dataFile : dataFiles) {
             final String fileName = dataFile.getName();
             InputStream is = null;
             try {
                 is = dataFile.getInputStream();
                 List<EntityValue> entityValues =
-                        processFile(fileName, ownerPartyId, is, converter, ec);
-                if(!messages.hasError()) {
+                        processFile(fileName, is, converter, ec, dbWorker);
+                if(entityValues != null && !messages.hasError()) {
                     entityList.addAll(entityValues);
                 }
             } catch (IOException e) {
@@ -182,32 +131,62 @@ public class FileImportServices {
                 }
             }
         }
+        dbWorker.shutdown();
+
+        String nowStr = ec.getL10n().format(ec.getUser().getNowTimestamp(), "yyyyMMdd_HHmmss");
+        HttpServletResponse response = ec.getWeb().getResponse();
+        response.setCharacterEncoding("UTF-8");
+        CSVFormat csvFormat = CSVFormat.DEFAULT.builder()
+                .setHeader(dbWorker.headers.toArray(new String[]{})).build();
+        try {
+            PrintWriter writer = response.getWriter();
+            CSVPrinter csvPrinter = new CSVPrinter(writer, csvFormat);
+            Collection<List<String>> results = dbWorker.getResults();
+            System.out.println("Numbers of CSV ROWs: " + results.size());
+            for(List<String> item : results) {
+                csvPrinter.printRecord(item);
+/*
+                for(String fieldStr : item) {
+                    // write the field value
+                    if (fieldStr.contains(",") || fieldStr.contains("\"") || fieldStr.contains("\n")) {
+                        writer.write("\"");
+                        writer.write(fieldStr.replace("\"", "\"\""));
+                        writer.write("\"");
+                    } else {
+                        writer.write(fieldStr);
+                    }
+                }
+                writer.println();
+*/
+            }
+            response.setHeader("Cache-Control", "no-cache, must-revalidate, private");
+            response.setContentType("text/csv");
+            response.setHeader("Content-Disposition", "attachment; filename=\"DataImport_" + nowStr + ".csv\";");
+            return null;
+        } catch (IOException e) {
+            messages.addError("Cannot render CSV report");
+            LOGGER.error("Cannot render CSV report", e);
+        }
         return result;
     }
 
-    private static List<EntityValue> processFile(String fileName, String ownerPartyId
-            , InputStream is
-            , EntityConverter converter, ExecutionContext ec) throws IOException {
+    private static List<EntityValue> processFile(String fileName, InputStream is
+            , EntityConverter converter, ExecutionContext ec, DBWorker dbWorker) throws IOException {
         final MessageFacade messages = ec.getMessage();
-        final UserFacade uf = ec.getUser();
 
         final int dotPos = fileName.lastIndexOf(".");
         final String fileType = fileName.substring(dotPos + 1).toLowerCase();
-        List<String> errors = new ArrayList<>();
+        StringBuilder errors = new StringBuilder();
         BaseParser parser;
-        List<EntityValue> entityValues = new ArrayList<>();
+        List<EntityValue> entities = null;
         switch (fileType) {
             case "csv":
                 parser = new CsvParser(new EntityConverter(converter));
-                List<EntityValue> entities = parser.parse(fileName, is, errors);
-                if(errors.isEmpty()) {
-                    if(saveEntities(ec, entities, is, ownerPartyId)) { //save and commit each file separately
-                        messages.addMessage("File" + fileName + " imported successfully"
-                                , NotificationMessage.NotificationType.success);
-                        entityValues.addAll(entities);
-                    } else {
-                        messages.addError("Failed to import file " + fileName);
-                    }
+                parser.dbWorker = dbWorker;
+                entities = parser.parse(fileName, is, errors);
+                if(entities == null || entities.isEmpty()) {
+                    String error = errors.length() == 0 ? "Failed to update DB" : errors.toString();
+                    dbWorker.addResult(new String[]{fileName, error});
                 }
                 break;
             case "jpeg":
@@ -215,23 +194,38 @@ public class FileImportServices {
             case "png":
             case "gif":
                 parser = new BaseParser(converter);
-                EntityValue entityValue = parser.parseItem(fileName, is, errors);
-                if(errors.isEmpty()) {
-                    if(saveEntity(ec, entityValue, is, ownerPartyId)) { //save and commit each file separately
+                entities = parser.parse(fileName, is, errors);
+                if(entities == null || entities.isEmpty()) {
+                    String error = errors.length() == 0 ? "Failed to update DB" : errors.toString();
+                    dbWorker.addResult(new String[]{fileName, error});
+                } else {
+                    EntityValue entityValue = entities.get(0);
+                    if (saveResource(ec, entityValue, is, fileName)) { //save and commit each file separately
                         messages.addMessage("File" + fileName + " imported successfully"
                                 , NotificationMessage.NotificationType.success);
-                        entityValues.add(entityValue);
+                        dbWorker.submit(Arrays.asList(fileName, "Imported"), entityValue);
                     } else {
                         messages.addError("Failed to import file " + fileName);
+                        dbWorker.addResult(new String[]{fileName, "Failed to save content file"});
+                        entities = null;
                     }
                 }
                 break;
             case "zip":
                 EntityConverter zipConverter = new EntityConverter(converter);
-                if(zipConverter.hasCommonConfigs())
-                    zipConverter.convert(fileName.substring(0, fileName.lastIndexOf(".")), errors);
+                if(zipConverter.hasCommonConfigs()) {
+                    ArrayList<String> errs = new ArrayList<>();
+                    zipConverter.convert(fileName.substring(0, fileName.lastIndexOf(".")), errs);
+                    if(!errs.isEmpty()) {
+                        for(String err : errs) {
+                            errors.append("\n").append(err);
+                        }
+                        return null;
+                    }
+                }
                 ZipInputStream zis = new ZipInputStream(is);
                 int entryNo = 0;
+                entities = new ArrayList<>();
                 for (ZipEntry entry = zis.getNextEntry(); entry != null; entry = zis.getNextEntry()) {
                     entryNo++;
                     String entryName = entry.getName();
@@ -244,9 +238,9 @@ public class FileImportServices {
                         entryName = entryName.substring(1);
                     }*/
                     List<EntityValue> zipItemEntities =
-                            processFile(entryName, ownerPartyId, zis, zipConverter, ec);
-                    if(zipItemEntities != null)
-                        entityValues.addAll(zipItemEntities);
+                            processFile(entryName, zis, zipConverter, ec, dbWorker);
+                    if(zipItemEntities != null && !zipItemEntities.isEmpty())
+                        entities.addAll(zipItemEntities);
                     zis.closeEntry();
                     if(messages.hasError()) {
                         break; // break for, Stop processing next files
@@ -256,10 +250,14 @@ public class FileImportServices {
             default:
                 break;
         }
-        for (String error : errors) {
-            messages.addError(error);
+        if(errors.length() == 0) {
+            messages.addMessage("File" + fileName + " imported successfully"
+                    , NotificationMessage.NotificationType.success);
+        } else {
+            messages.addError("Failed to import file " + fileName );
+            messages.addError(errors.toString());
         }
 
-        return entityValues;
+        return entities;
     }
 }
