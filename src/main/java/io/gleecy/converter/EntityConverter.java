@@ -1,7 +1,6 @@
 package io.gleecy.converter;
 
 import io.gleecy.converter.value.ColIndex;
-import io.gleecy.db.DBWorker;
 import org.moqui.entity.EntityFind;
 import org.moqui.entity.EntityList;
 import org.moqui.entity.EntityValue;

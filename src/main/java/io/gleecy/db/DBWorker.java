@@ -3,16 +3,11 @@ package io.gleecy.db;
 import org.moqui.Moqui;
 import org.moqui.context.*;
 import org.moqui.entity.EntityValue;
-import org.moqui.impl.context.ArtifactExecutionFacadeImpl;
-import org.moqui.impl.context.ArtifactExecutionInfoImpl;
-import org.moqui.impl.context.UserFacadeImpl;
+import org.moqui.impl.context.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,10 +25,13 @@ public class DBWorker {
         final AtomicInteger numThreads = new AtomicInteger(0);
         final AtomicBoolean keepAlive = new AtomicBoolean(true);
         final String username;
+        ExecutionContextFactoryImpl ecfi = null;
+
         CrURunable(ExecutionContext ec, int maxThreads, int numTasksPerThread) {
             this.username = ec.getUser().getUsername();
             this.maxThreads = maxThreads;
             this.numTasksPerThread = numTasksPerThread;
+            this.ecfi = (ExecutionContextFactoryImpl) ec.getFactory();
         }
         boolean _wait(String waitingFor) {
             synchronized (lock) {
@@ -87,9 +85,10 @@ public class DBWorker {
                 int iNumThreads =  this.numThreads.get();
                 if(iNumThreads < numExpectedThreads) {
                     //LOGGER.info("Creating new thread");
-                    String newThreadName = this.workerGroup.getName()
-                            + "_" + this.numThreads.addAndGet(1);
-                    new Thread(this.workerGroup, this, newThreadName).start();
+                    //String newThreadName = this.workerGroup.getName()
+                    //        + "_" + this.numThreads.addAndGet(1);
+                    ecfi.workerPool.execute(this);
+                    //new Thread(this.workerGroup, this, newThreadName).start();
                     return;
                 }
             }
@@ -106,43 +105,86 @@ public class DBWorker {
             }
         }
 
+        ExecutionContextFactoryImpl getEcfi() {
+            if (ecfi == null)
+                ecfi = (ExecutionContextFactoryImpl) Moqui.getExecutionContextFactory();
+            return ecfi;
+        }
+        String store(EntityValue entity, TransactionFacade tf) {
+            boolean beganTransaction = false;
+            try {
+                beganTransaction = tf.begin(100);
+                entity.createOrUpdate();
+                tf.commit();
+            } catch (Exception e) {
+                String errStr = "Error saving entity " + entity.getPrimaryKeysString();
+                LOGGER.error(errStr, e);
+                tf.rollback(beganTransaction, errStr, e);
+                return "Imported Failed: " + e.getMessage();
+            }
+            return null;
+        }
         @Override
         public void run() {
-            System.out.println("NEW THREAD: " + Thread.currentThread().getName());
-            ExecutionContextFactory ecf = Moqui.getExecutionContextFactory();
-            ExecutionContext ec = ecf.getExecutionContext();
-            UserFacadeImpl ufi = (UserFacadeImpl) ec.getUser();
+            final String threadName = Thread.currentThread().getName();
+            System.out.println("NEW THREAD: " + threadName);
 
-            if (this.username != null && this.username.length() > 0) {
-                ufi.internalLoginUser(this.username, false);
-            } else {
-                ufi.loginAnonymousIfNoUser();
-            }
-            ArtifactExecutionFacadeImpl aefi = (ArtifactExecutionFacadeImpl) ec.getArtifactExecution();
-            aefi.disableAuthz();
-            TransactionFacade tf = ec.getTransaction();
-            AbstractMap.SimpleEntry<List<String>, EntityValue> task;
-            while((task = this.pollTask()) != null || this.keepAlive.get()) {
-                if(task == null) {
-                    if(!_wait("waiting for new task"))
-                        break;
-                    continue;
-                }
-                List<String> rowValues = task.getKey();
-                EntityValue entity = task.getValue();
-                boolean beganTransaction = false;
+            // check for active Transaction
+            if (getEcfi().transactionFacade.isTransactionInPlace()) {
+                LOGGER.error("THREAD '" + threadName + "': " +
+                        "A transaction is in place, trying to commit...");
                 try {
-                    beganTransaction = tf.begin(100);
-                    entity.createOrUpdate();
-                    tf.commit();
-                    rowValues.set(1, "Imported successfully.");
+                    getEcfi().transactionFacade.destroyAllInThread();
                 } catch (Exception e) {
-                    rowValues.set(1, "Imported Failed: " + e.getMessage());
-                    String errStr = "Error saving entity " + entity.getPrimaryKeysString();
-                    LOGGER.error(errStr, e);
-                    tf.rollback(beganTransaction, errStr, e);
+                    LOGGER.error("THREAD '" + threadName + "' STOPPED: " +
+                            "Failed to commit in place transaction", e);
+                    return;
                 }
-                this.addResult(rowValues);
+            }
+            ExecutionContextImpl activeEc = getEcfi().activeContext.get();
+            if (activeEc != null) {
+                LOGGER.error("THREAD '" + threadName + "': " +
+                        " there is already an ExecutionContext for user" + activeEc.getUser().getUsername() +
+                        " (from" + activeEc.forThreadId + ":" + activeEc.forThreadName + "), destroying..." );
+                try {
+                    activeEc.destroy();
+                } catch (Throwable t) {
+                    LOGGER.error("THREAD '" + threadName + "' STOPPED: " +
+                            "Error destroying in-place ExecutionContext. STOPPED", t);
+                }
+            }
+
+            ExecutionContextImpl eci = null;
+            String successMessage = "Imported successfully.";
+            try {
+                eci = getEcfi().getEci();
+                eci.getArtifactExecution().disableAuthz();
+                UserFacadeImpl ufi = (UserFacadeImpl) eci.getUser();
+                if (this.username != null && this.username.length() > 0) {
+                    ufi.internalLoginUser(this.username, false);
+                } else {
+                    ufi.loginAnonymousIfNoUser();
+                }
+                TransactionFacadeImpl tf = eci.transactionFacade;
+                AbstractMap.SimpleEntry<List<String>, EntityValue> task;
+                while ((task = this.pollTask()) != null || this.keepAlive.get()) {
+                    if (task == null) {
+                        if (!_wait("waiting for new task"))
+                            break;
+                        continue;
+                    }
+                    List<String> rowValues = task.getKey();
+                    EntityValue entity = task.getValue();
+                    String errMsg = store(entity, tf);
+                    if (errMsg != null) {
+                        rowValues.set(1, errMsg);
+                    } else {
+                        rowValues.set(1, successMessage);
+                    }
+                    this.addResult(rowValues);
+                }
+            } finally {
+                if (eci != null) eci.destroy();
             }
             int curNumThreads;
             synchronized (this.numThreads) {
