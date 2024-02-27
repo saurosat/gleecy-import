@@ -8,6 +8,7 @@ import org.moqui.impl.entity.EntityFacadeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.Timestamp;
 import java.util.*;
 
 public class EntityConverter extends Converter{
@@ -19,6 +20,7 @@ public class EntityConverter extends Converter{
     protected String entityName;
     protected long fromRow = 0, toRow = Long.MAX_VALUE;
     protected long fromCol = 0, toCol = Integer.MAX_VALUE;
+    protected final Timestamp now = new Timestamp(System.currentTimeMillis());
 
     public long getFromRow() {
         return fromRow;
@@ -110,6 +112,7 @@ public class EntityConverter extends Converter{
 
             EntityValue entity = null;
             String pseudoId = (String) fValMap.get("pseudoId");
+            String tenantId = this.efi.ecfi.getEci().getUser().getTenantId();
             if(pseudoId != null) {
                 EntityFind finder = this.efi.find(this.entityName).forUpdate(true).
                         condition("pseudoId", pseudoId);
@@ -122,12 +125,13 @@ public class EntityConverter extends Converter{
                     }
                 }
                 if(ownerPartyId == null) {
-                    ownerPartyId = this.efi.ecfi.getEci().getUser().getTenantId();
+                    ownerPartyId = tenantId;
                 }
                 if(ownerPartyId == null) {
                     ownerPartyId = "_NA_";
                 }
                 finder.condition("ownerPartyId", ownerPartyId);
+                fValMap.put("ownerPartyId", ownerPartyId);
                 EntityList entities = finder.list();
                 if(!entities.isEmpty()) {
                     entity = entities.get(0);
@@ -147,6 +151,7 @@ public class EntityConverter extends Converter{
                 entity = commonValues.cloneValue();
                 entity.setAll(fValMap);
                 entity.setSequencedIdPrimary();
+                entity.set("lastUpdatedStamp", now);
             }
             return entity;
         }

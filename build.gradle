@@ -1,11 +1,12 @@
-apply plugin: 'groovy'
-
 def componentNode = parseComponent(project)
 version = componentNode.'@version'
 def jarBaseName = componentNode.'@name'
 def moquiDir = projectDir.parentFile.parentFile.parentFile
 def frameworkDir = file(moquiDir.absolutePath + '/framework')
 // sourceCompatibility = '1.8'
+
+apply plugin: 'java-library'
+apply plugin: 'groovy'
 
 repositories {
     flatDir name: 'localLib', dirs: frameworkDir.absolutePath + '/lib'
@@ -25,28 +26,12 @@ dependencies {
 // no longer workds as of gradle 4.8 or possibly earlier, use clear() instead: check.dependsOn.remove(test)
 check.dependsOn.clear()
 
+task cleanLib(type: Delete) { delete fileTree(dir: projectDir.absolutePath+'/lib', include: '*') }
+clean.dependsOn cleanLib
+
 // mantle-usl has no jar file, currently no source to build
 // jar { baseName = componentNode.'@name' }
 jar {
     destinationDirectory = file(projectDir.absolutePath + '/lib')
     archiveBaseName = jarBaseName
-}
-test {
-    useJUnitPlatform()
-    testLogging { events "passed", "skipped", "failed" }
-    testLogging.showStandardStreams = true; testLogging.showExceptions = true
-    maxParallelForks 1
-
-    dependsOn cleanTest
-    dependsOn ':runtime:component:mantle-usl:test'
-
-    systemProperty 'moqui.runtime', moquiDir.absolutePath + '/runtime'
-    systemProperty 'moqui.conf', 'conf/MoquiDevConf.xml'
-    systemProperty 'moqui.init.static', 'true'
-
-    classpath += files(sourceSets.main.output.classesDirs)
-    // filter out classpath entries that don't exist (gradle adds a bunch of these), or ElasticSearch JarHell will blow up
-    classpath = classpath.filter { it.exists() }
-
-    beforeTest { descriptor -> logger.lifecycle("Running test: ${descriptor}") }
 }

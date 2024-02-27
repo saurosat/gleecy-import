@@ -26,7 +26,7 @@ public class CsvParser extends BaseParser{
 
     }
 
-    public char csvDelimiter() { return ','; }
+    public char csvDelimiter() { return ';'; }
     public char csvCommentStart() { return '#'; }
     public char csvQuoteChar() { return '"'; }
 

@@ -41,10 +41,10 @@ public class DBWorker {
                     LOGGER.error(Thread.currentThread().getName()
                             + ": Got InterruptedException while "
                             + waitingFor, e);
-                    return false;
+                    return true;
                 }
             }
-            return true;
+            return false;
         }
         void _notify() {
             synchronized (lock) {
@@ -88,6 +88,7 @@ public class DBWorker {
                     //String newThreadName = this.workerGroup.getName()
                     //        + "_" + this.numThreads.addAndGet(1);
                     ecfi.workerPool.execute(this);
+                    this.numThreads.addAndGet(1);
                     //new Thread(this.workerGroup, this, newThreadName).start();
                     return;
                 }
@@ -100,7 +101,7 @@ public class DBWorker {
             this.keepAlive.set(false);
             _notifyAll();
             while (this.numThreads.get() > 0) {
-                if(!_wait("waiting for other threads to shutdown"))
+                if(_wait("waiting for other threads to shutdown"))
                     break;;
             }
         }
@@ -169,7 +170,7 @@ public class DBWorker {
                 AbstractMap.SimpleEntry<List<String>, EntityValue> task;
                 while ((task = this.pollTask()) != null || this.keepAlive.get()) {
                     if (task == null) {
-                        if (!_wait("waiting for new task"))
+                        if (_wait("waiting for new task"))
                             break;
                         continue;
                     }

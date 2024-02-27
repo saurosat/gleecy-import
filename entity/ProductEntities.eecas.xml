@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<eecas xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-eca-3.xsd">
+    <eeca entity="mantle.product.Product" id="generateFeaturesAndVariants" on-create="true" on-update="true"
+          on-delete="false" run-on-error="false">
+        <condition>
+            <compare field="productTypeEnumId" value="PtVirtual" />
+        </condition>
+        <actions >
+            <service-call name="gleecy.import.ProductEntityServices.generateSelectableFeaturesAndVariants" in-map="context"/>
+        </actions>
+    </eeca>
+</eecas>
