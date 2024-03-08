@@ -1,9 +1,14 @@
 package io.gleecy.db;
 
+import org.apache.commons.lang3.StringUtils;
 import org.moqui.Moqui;
 import org.moqui.context.*;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.context.*;
+import org.moqui.impl.entity.EntityDefinition;
+import org.moqui.impl.entity.EntityJavaUtil;
+import org.moqui.impl.entity.EntityValueBase;
+import org.moqui.util.ObjectUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,10 +17,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DBWorker {
+    private static final String SUCCESS_MESSAGE = "Imported successfully.";
+
     private static final class Lock {}
     private static final Logger LOGGER = LoggerFactory.getLogger(DBWorker.class);
     static class CrURunable implements Runnable {
-        private final ThreadGroup workerGroup = new ThreadGroup("DataImportWorkers");
         private final Lock lock = new Lock();
         private final int maxThreads;
         private final int numTasksPerThread;
@@ -25,7 +31,7 @@ public class DBWorker {
         final AtomicInteger numThreads = new AtomicInteger(0);
         final AtomicBoolean keepAlive = new AtomicBoolean(true);
         final String username;
-        ExecutionContextFactoryImpl ecfi = null;
+        ExecutionContextFactoryImpl ecfi;
 
         CrURunable(ExecutionContext ec, int maxThreads, int numTasksPerThread) {
             this.username = ec.getUser().getUsername();
@@ -68,7 +74,7 @@ public class DBWorker {
         }
         void queueTask(List<String> rowValues, EntityValue task) {
             //LOGGER.info("queue task");
-            int numExpectedThreads = 0;
+            int numExpectedThreads ;
             synchronized (this.taskQueue) {
                 this.taskQueue.offer(new AbstractMap.SimpleEntry<>(rowValues, task));
                 int numTasks = this.taskQueue.size();
@@ -102,7 +108,7 @@ public class DBWorker {
             _notifyAll();
             while (this.numThreads.get() > 0) {
                 if(_wait("waiting for other threads to shutdown"))
-                    break;;
+                    break;
             }
         }
 
@@ -111,19 +117,76 @@ public class DBWorker {
                 ecfi = (ExecutionContextFactoryImpl) Moqui.getExecutionContextFactory();
             return ecfi;
         }
-        String store(EntityValue entity, TransactionFacade tf) {
+        transient Map<String, Set<String>> fkFMap = new HashMap<>();
+        private Set<String> getFkFieldNames(EntityDefinition ed) {
+            Set<String> fks = fkFMap.get(ed.fullEntityName);
+            if(fks != null) return fks;
+            fks = new HashSet<>();
+            ArrayList<EntityJavaUtil.RelationshipInfo> relInfos = ed.getRelationshipsInfo(false);
+            for(EntityJavaUtil.RelationshipInfo relInfo : relInfos) {
+                if(relInfo.isFk)
+                    fks.addAll(relInfo.keyMap.keySet());
+            }
+            fkFMap.put(ed.fullEntityName, fks);
+            LOGGER.debug("FK fields of " + ed.fullEntityName + ": " + StringUtils.join(fks, ","));
+            return fks;
+        }
+        void store(List<String> rowValues, EntityValue entity, TransactionFacade tf) {
+            EntityDefinition ed = ((EntityValueBase) entity).getEntityDefinition();
+            Set<String> fks = getFkFieldNames(ed);
+            Map<String, Object> primaryKeys = entity.getPrimaryKeys();
+            int keyMissingCount = 0;
+            for(Map.Entry<String, Object> entry : primaryKeys.entrySet()) {
+                if (ObjectUtilities.isEmpty(entry.getValue())) {
+                    if(fks.contains(entry.getKey())) {
+                        rowValues.set(1, "Mandatory foreign key is missing: " + entry.getKey());
+                        this.addResult(rowValues);
+                        return;
+                    }
+                    keyMissingCount++;
+                }
+            }
+
+            if (keyMissingCount > 2) {
+                rowValues.set(1, "Data Import is not supported for tables having more than 2 primary keys");
+                this.addResult(rowValues);
+                return;
+            }
+            if (keyMissingCount > 0) {
+                entity.setSequencedIdPrimary();
+                if (keyMissingCount == 2) {
+                    entity.setSequencedIdSecondary();
+                }
+            }
+
             boolean beganTransaction = false;
             try {
                 beganTransaction = tf.begin(100);
-                entity.createOrUpdate();
-                tf.commit();
+                if(keyMissingCount == 0) {
+                    EntityValueBase existing = (EntityValueBase) ed.makeEntityFind()
+                            .forUpdate(true).condition(primaryKeys).one();
+                    if(existing != null) {
+                        Map<String, Object> eValueMap = entity.getEtlValues();
+                        eValueMap.forEach((k, v) -> {
+                            if(!primaryKeys.containsKey(k)) {
+                                existing.put(k, v);
+                            }
+                        });
+                        existing.update();
+                    }
+                } else {
+                    entity.create();
+                }
+                rowValues.set(1, SUCCESS_MESSAGE);
             } catch (Exception e) {
                 String errStr = "Error saving entity " + entity.getPrimaryKeysString();
                 LOGGER.error(errStr, e);
                 tf.rollback(beganTransaction, errStr, e);
-                return "Imported Failed: " + e.getMessage();
+                rowValues.set(1, "Imported Failed: " + e.getMessage());
+            } finally {
+                tf.commit(beganTransaction);
             }
-            return null;
+            this.addResult(rowValues);
         }
         @Override
         public void run() {
@@ -156,12 +219,11 @@ public class DBWorker {
             }
 
             ExecutionContextImpl eci = null;
-            String successMessage = "Imported successfully.";
             try {
                 eci = getEcfi().getEci();
                 eci.getArtifactExecution().disableAuthz();
                 UserFacadeImpl ufi = (UserFacadeImpl) eci.getUser();
-                if (this.username != null && this.username.length() > 0) {
+                if (this.username != null && !this.username.isEmpty()) {
                     ufi.internalLoginUser(this.username, false);
                 } else {
                     ufi.loginAnonymousIfNoUser();
@@ -174,15 +236,7 @@ public class DBWorker {
                             break;
                         continue;
                     }
-                    List<String> rowValues = task.getKey();
-                    EntityValue entity = task.getValue();
-                    String errMsg = store(entity, tf);
-                    if (errMsg != null) {
-                        rowValues.set(1, errMsg);
-                    } else {
-                        rowValues.set(1, successMessage);
-                    }
-                    this.addResult(rowValues);
+                    store(task.getKey(), task.getValue(), tf);
                 }
             } finally {
                 if (eci != null) eci.destroy();
@@ -214,7 +268,7 @@ public class DBWorker {
         return this.crU.results;
     }
     public void setHeader(List<String> headers) {
-        if(headers == null || headers.size() == 0) {
+        if(headers == null || headers.isEmpty()) {
             return;
         }
         if(headers.get(0) == null && headers.get(1) == null) {
@@ -257,14 +311,14 @@ public class DBWorker {
                 .setParameters(entity.getEtlValues());
         if (!aefi.isPermitted(aeii, (ArtifactExecutionInfoImpl) aefi.peek(),
                 true, false, true, null)) {
-            StringBuilder err = new StringBuilder()
-                    .append("User ").append(crU.username == null ? "[No User]" : crU.username)
-                    .append(" is not authorized for").append(aeii.getActionDescription())
-                    .append(" on ").append(aeii.getTypeDescription()).append(aeii.getName());
-            rowValues.set(1, err.toString());
+            String err = "User " + (crU.username == null ? "[No User]" : crU.username) +
+                    " is not authorized for" + aeii.getActionDescription() +
+                    " on " + aeii.getTypeDescription() + aeii.getName();
+            rowValues.set(1, err);
             this.crU.addResult(rowValues);
             return;
         }
+
 
         this.crU.queueTask(rowValues, entity);
    }

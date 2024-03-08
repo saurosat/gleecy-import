@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
-    <service verb="generateSelectableFeaturesAndVariants" type="java" location="io.gleecy.service.ProductEntityServices" method="generateSelectableFeaturesAndVariants">
+    <service verb="generateProductRelates" type="java" location="io.gleecy.service.ProductEntityServices" method="generateProductRelates">
         <in-parameters>
             <parameter name="entityValue" required="true" type="org.moqui.entity.EntityValue"/>
             <parameter name="originalValue" required="false" type="org.moqui.entity.EntityValue"/>
         </in-parameters>
     </service>
-
+    <service verb="generateCategoryRelates" type="java" location="io.gleecy.service.ProductEntityServices" method="generateCategoryRelates">
+        <in-parameters>
+            <parameter name="entityValue" required="true" type="org.moqui.entity.EntityValue"/>
+            <parameter name="originalValue" required="false" type="org.moqui.entity.EntityValue"/>
+        </in-parameters>
+    </service>
 </services>

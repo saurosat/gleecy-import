@@ -1,9 +1,12 @@
 package io.gleecy.converter;
 
 import io.gleecy.converter.value.ColIndex;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.moqui.entity.EntityFind;
 import org.moqui.entity.EntityList;
 import org.moqui.entity.EntityValue;
+import org.moqui.impl.entity.EntityDefinition;
 import org.moqui.impl.entity.EntityFacadeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,6 +20,7 @@ public class EntityConverter extends Converter{
     //public static
     protected EntityValue template;
     protected EntityValue commonValues;
+    protected EntityDefinition ed;
     protected String entityName;
     protected long fromRow = 0, toRow = Long.MAX_VALUE;
     protected long fromCol = 0, toCol = Integer.MAX_VALUE;
@@ -48,6 +52,7 @@ public class EntityConverter extends Converter{
     public EntityConverter(EntityConverter tobeCloned) {
         super(tobeCloned);
         //template = tobeCloned.template.cloneValue(); //not needed to clone:
+        ed = tobeCloned.ed;
         template = tobeCloned.template;
         entityName = tobeCloned.entityName;
         fromRow = tobeCloned.fromRow;
@@ -110,13 +115,10 @@ public class EntityConverter extends Converter{
                 }
             }
 
-            EntityValue entity = null;
-            String pseudoId = (String) fValMap.get("pseudoId");
             String tenantId = this.efi.ecfi.getEci().getUser().getTenantId();
-            if(pseudoId != null) {
-                EntityFind finder = this.efi.find(this.entityName).forUpdate(true).
-                        condition("pseudoId", pseudoId);
-                String ownerPartyId = (String) fValMap.get("ownerPartyId");
+            String ownerPartyId = null;
+            if(ed.isField("ownerPartyId")) {
+                ownerPartyId = (String) fValMap.get("ownerPartyId");
                 if(ownerPartyId != null) {//check if ownerPartyId exists
                     if (this.efi.fastFindOne("mantle.party.Party",
                             true, true, ownerPartyId) == null) {
@@ -130,28 +132,32 @@ public class EntityConverter extends Converter{
                 if(ownerPartyId == null) {
                     ownerPartyId = "_NA_";
                 }
-                finder.condition("ownerPartyId", ownerPartyId);
                 fValMap.put("ownerPartyId", ownerPartyId);
-                EntityList entities = finder.list();
-                if(!entities.isEmpty()) {
-                    entity = entities.get(0);
-                    //entity.setAll(this.commonValues);
-                }
             }
-            if(entity != null) { //from DB
-                //Check if any field changed:
-                int numFieldChanges = setFieldValues(entity, this.commonValues.getEtlValues(), this.commonConverters);
-                numFieldChanges += setFieldValues(entity, fValMap, this.specificConverters);
-                numFieldChanges += setFieldValues(entity, fValMap, this.map2StringConverters);
-                if(numFieldChanges == 0) {
-                    errors.add("Ignored. Entity ID '" + pseudoId + "' already exists in DB with exact values");
-                    return null;
+
+            EntityValue entity = commonValues.cloneValue();
+            entity.set("lastUpdatedStamp", now);
+            entity.setAll(fValMap);
+            if(!entity.containsPrimaryKey() && ed.isField("pseudoId")) {
+                String pseudoId = (String) fValMap.get("pseudoId");
+                if(!StringUtils.isBlank(pseudoId)) {
+                    EntityValue existing = this.efi.find(this.entityName)
+                            .useCache(true).condition("pseudoId", pseudoId.trim()).one();
+                    if(existing != null) {
+                        //check if any field changed:
+                        Map<String, Object> newValMap = entity.getEtlValues();
+                        Map<String, Object> oldValMap = existing.getEtlValues();
+                        int numFieldChanges = setFieldValues(this.commonConverters, newValMap, oldValMap, null);
+                        numFieldChanges += setFieldValues(this.specificConverters, newValMap, oldValMap, null);
+                        numFieldChanges += setFieldValues(this.map2StringConverters, newValMap, oldValMap, null);
+                        if(numFieldChanges == 0) {
+                            errors.add("Ignored. Entity ID '" + pseudoId + "' already exists in DB with exact values");
+                            return null;
+                        }
+
+                        entity.setAll(existing.getPrimaryKeys());
+                    }
                 }
-            } else {
-                entity = commonValues.cloneValue();
-                entity.setAll(fValMap);
-                entity.setSequencedIdPrimary();
-                entity.set("lastUpdatedStamp", now);
             }
             return entity;
         }
@@ -160,15 +166,16 @@ public class EntityConverter extends Converter{
                 + value.getClass().getName());
         return null;
     }
-    protected int setFieldValues(EntityValue dbEntity, Map<String, Object> newValMap,
-                                     Collection<FieldConverter> fConverters) {
+    protected int setFieldValues(Collection<FieldConverter> fConverters, Map<String, Object> newValMap,
+                                 Map<String, Object> oldValMap, Map<String, Object> diff) {
         int numFieldChanges = 0;
         for(FieldConverter fieldConverter : fConverters) {
             String fName = fieldConverter.fieldName;
             Object newVal = newValMap.get(fName);
-            Object dbVal = dbEntity.getNoCheckSimple(fName);
+            Object dbVal = oldValMap.get(fName);
             if(newVal != null && (dbVal == null || !dbVal.equals(newVal))) {
-                dbEntity.set(fName, newVal);
+                if(diff != null)
+                    diff.put(fName, newVal);
                 numFieldChanges++;
             }
         }
@@ -199,7 +206,8 @@ public class EntityConverter extends Converter{
             LOGGER.error(error);
             return error;
         }
-        commonValues = efi.makeValue(entityName);
+        ed = efi.getEntityDefinition(entityName);
+        commonValues = ed.makeEntityValue();
 
         EntityList entityList = efi.find("gleecy.import.FieldConfig")
                 .condition("templateId", templateId)

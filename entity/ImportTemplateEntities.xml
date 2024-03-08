@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <entities xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/entity-definition-3.xsd">
+    <extend-entity entity-name="ProductCategory" package="mantle.product.category">
+        <field name="parentCategories" type="text-long" />
+    </extend-entity>
     <extend-entity entity-name="Product" package="mantle.product">
         <field name="ePftColor" type="text-long"/>
         <field name="ePftSize" type="text-long" />
@@ -8,6 +11,13 @@
         <field name="ePftStyle" type="text-long" />
         <field name="ePftTopic" type="text-long" />
         <field name="ePftArtist" type="text-long" />
+        <field name="categories" type="text-long" />
+    </extend-entity>
+    <extend-entity entity-name="ProductFeature" package="mantle.product.feature" >
+        <index name="FEATURE_ID_ABBREV" unique="true">
+            <index-field name="abbrev"/>
+            <index-field name="ownerPartyId"/>
+        </index>
     </extend-entity>
     <entity entity-name="ImportTemplate" package="gleecy.import">
         <field name="templateId" type="id" is-pk="true"/>
