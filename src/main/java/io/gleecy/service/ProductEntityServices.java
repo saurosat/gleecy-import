@@ -14,8 +14,11 @@ import org.moqui.util.ContextStack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class ProductEntityServices {
     private static final int MAX_ATTEMPTS = 3;
@@ -151,49 +154,78 @@ public class ProductEntityServices {
                 .one();
     }
     private static final class ArrayNewOld {
-        public static String[] EMPTY_ARR = new String[0];
         public final String[] oldValues;
         public final String[] newValues;
         public final boolean hasNew;
+        public final boolean keepOrder;
+        public int newLen, oldLen;
         public ArrayNewOld(String newStr, String oldStr) {
+            this(newStr, oldStr, false);
+        }
+        public ArrayNewOld(String newStr, String oldStr, boolean keepOrder) {
+            this.keepOrder = keepOrder;
             String[] newVals = splitStr(newStr);
             String[] oldVals = splitStr(oldStr);
-            if(newVals != null && newVals != EMPTY_ARR
-                    && oldVals != null && oldVals != EMPTY_ARR) {
-                for(int i = oldVals.length - 1; i >= 0; i--) {
-                    for (int j = newVals.length - 1; j >= 0; j--) {
-                        if(oldVals[i].equalsIgnoreCase(newVals[j])) {
-                            ArrayUtils.remove(oldVals, i);
-                            ArrayUtils.remove(newVals, j);
+            int oldLen = this.oldLen = oldVals.length;
+            int newLen = this.newLen = newVals.length;
+            if(newLen > 0 && oldLen > 0) {
+                if(keepOrder) {
+                    if(oldLen < newLen) {
+                        oldVals = Arrays.copyOf(oldVals, newLen);
+                    }
+                    for(int i = newLen - 1; i >= 0; i--) {
+                        if(newVals[i].isEmpty() || newVals[i].equalsIgnoreCase(oldVals[i])) {
+                            oldVals[i] = null; this.oldLen--;
+                            newVals[i] = null; this.newLen--;
+                        } else if(newVals[i].equalsIgnoreCase("_NA_")) {
+                            newVals[i] = null; this.newLen--;
                         }
                     }
+                } else {
+                    for(int i = oldLen - 1; i >= 0; i--) {
+                        if(oldVals[i].isEmpty()) {
+                            ArrayUtils.remove(oldVals, i); this.oldLen--;
+                            continue;
+                        }
+                        for (int j = newLen - 1; j >= 0; j--) {
+                            if(newVals[j].isEmpty()) {
+                                ArrayUtils.remove(newVals, j); this.newLen--;
+                                continue;
+                            }
+                            if(newVals[j].equalsIgnoreCase(oldVals[j])) {
+                                ArrayUtils.remove(oldVals, i); this.oldLen--;
+                                ArrayUtils.remove(newVals, j); this.newLen--;
+                            }
+                        }
+                    }
+                    if(this.oldLen == 0) oldVals = EMPTY_ARR;
+                    if(this.newLen == 0) newVals = EMPTY_ARR;
                 }
-                if(newVals.length == 0) newVals = EMPTY_ARR;
-                if(oldVals.length == 0) oldVals = EMPTY_ARR;
             }
-            this.newValues = newVals;
+            hasNew = (newLen > 0 || oldLen > 0);
             this.oldValues = oldVals;
-            hasNew = (newVals != null && newVals != oldVals);
-        }
-        public String[] splitStr(String s) {
-            if(s == null || (s = s.trim()).isEmpty()) {
-                return null;
-            }
-            if(s.equalsIgnoreCase("_NA_")) {
-                return EMPTY_ARR;
-            }
-
-            String[] a = s.split(",");
-            for(int i = a.length - 1; i >= 0; i--) {
-                a[i] = a[i].trim();
-            }
-            return a;
+            this.newValues = newVals;
         }
     }
+    public static String[] EMPTY_ARR = new String[0];
+    public static String[] splitStr(String s) {
+        if(s == null || (s = s.trim()).isEmpty() || s.equalsIgnoreCase("_NA_")) {
+            return EMPTY_ARR;
+        }
+
+        String[] a = s.split(",");
+        for(int i = a.length - 1; i >= 0; i--) {
+            a[i] = a[i].trim();
+        }
+        return a;
+    }
     private static ArrayNewOld getArrayPair(EntityValue eNew, EntityValue eOld, String fieldName) {
+        return getArrayPair(eNew, eOld, fieldName, false);
+    }
+    private static ArrayNewOld getArrayPair(EntityValue eNew, EntityValue eOld, String fieldName, boolean keepOrder) {
         String newStr = eNew != null ? (String) eNew.getNoCheckSimple(fieldName) : null;
         String oldStr = eOld != null ? (String) eOld.getNoCheckSimple(fieldName) : null;
-        return new ArrayNewOld(newStr, oldStr);
+        return new ArrayNewOld(newStr, oldStr, keepOrder);
     }
     public static void generateCategoryRelates(ExecutionContext ec) {
         EntityFacade ef = ec.getEntity();
@@ -212,7 +244,7 @@ public class ProductEntityServices {
         String categoryId = (String) category.getNoCheckSimple("productCategoryId");
 
         String[] oldParentPseudoIds = newOldPseudos.oldValues;
-        if(oldParentPseudoIds != null && oldParentPseudoIds != ArrayNewOld.EMPTY_ARR) {
+        if(oldParentPseudoIds != null && oldParentPseudoIds != EMPTY_ARR) {
             for(String oldParentPseudoId : oldParentPseudoIds) {
                 EntityValue parentCategory = getCategory(oldParentPseudoId, tenantId, ef);
                 if(parentCategory == null) {
@@ -285,10 +317,13 @@ public class ProductEntityServices {
             return;
         }
 
+        /**
+         * GENERATE ProductCategoryMember. Categories must be imported prior
+         */
         ArrayNewOld newOldPseudos = getArrayPair(product, oriProduct, "categories");
         if(newOldPseudos.hasNew) {
             String[] oldCategories = newOldPseudos.oldValues;
-            if(oldCategories != null && oldCategories != ArrayNewOld.EMPTY_ARR) {
+            if(oldCategories != null && oldCategories != EMPTY_ARR) {
                 for(String catPseudo : oldCategories) {
                     EntityValue cat = getCategory(catPseudo, tenantId, ef);
                     if(cat == null) {
@@ -323,6 +358,10 @@ public class ProductEntityServices {
             }
         }
 
+        /**
+         * GENERATE ProductFeature, ProductFeatureAppl, ProductVariant, ProductVariantAppl
+         * GENERATE duplicated product records for variants
+         */
         EntityList featureTypeEnums = ef.find("moqui.basic.Enumeration")
                 .condition("enumTypeId", "ProductFeatureType")
                 .useCache(true).disableAuthz().list();
@@ -366,90 +405,164 @@ public class ProductEntityServices {
                 featureMap.put(featureType, features);
             }
         }
+
         if(featureMap.isEmpty()) {
             LOGGER.info("Found no new features, skip generating selectable features for a product: " + pseudoId);
-            return;
-        }
-
-        String[] featureTypes = featureMap.keySet().toArray(new String[0]);
-        int numFeatureType = featureTypes.length;
-        EntityValue[][] featuresByType = new EntityValue[numFeatureType][];
-        for(int i = 0; i < numFeatureType; i++) {
-            featuresByType[i] = featureMap.get(featureTypes[i]).toArray(new EntityValue[]{});
-        }
-
-        //GENERATE Sets of Distinguish features
-        List<EntityValue[]> featureArrList = new ArrayList<>();
-        for(int i = 0; i < featuresByType[0].length; i++) {
-            EntityValue[] arrFeatures = new EntityValue[numFeatureType];
-            arrFeatures[0] = featuresByType[0][i];
-            featureArrList.add(arrFeatures);
-        }
-        for(int iType = 1; iType < numFeatureType; iType++) {
-            EntityValue[] sameTypeFeatures = featuresByType[iType];
-            ArrayList<EntityValue[]> tempList = new ArrayList<>();
-            for(EntityValue[] prevFeatures : featureArrList) {
-                for (int i = 1; i < sameTypeFeatures.length; i++) {
-                    EntityValue[] arrFeatures = Arrays.copyOf(prevFeatures, numFeatureType);
-                    arrFeatures[iType] = sameTypeFeatures[i];
-                    tempList.add(arrFeatures);
-                }
-                prevFeatures[iType] = sameTypeFeatures[0]; //already added
+        } else {
+            String[] featureTypes = featureMap.keySet().toArray(new String[0]);
+            int numFeatureType = featureTypes.length;
+            EntityValue[][] featuresByType = new EntityValue[numFeatureType][];
+            for(int i = 0; i < numFeatureType; i++) {
+                featuresByType[i] = featureMap.get(featureTypes[i]).toArray(new EntityValue[]{});
             }
-            featureArrList.addAll(tempList);
-        }
 
-        //Generate Product Variants, Assocs and Distinguish featureAppl:
-        int assocSeqNo = 1;
-
-        for(EntityValue[] features : featureArrList) {
-            StringBuilder abbrevsSb = new StringBuilder("_");
-            for(EntityValue feature : features) {
-                String abbrev = (String) feature.getNoCheckSimple("abbrev");
-                if(!abbrev.isEmpty()) {
-                    abbrevsSb.append(abbrev);
-                }
+            //GENERATE Sets of Distinguish features
+            List<EntityValue[]> featureArrList = new ArrayList<>();
+            for(int i = 0; i < featuresByType[0].length; i++) {
+                EntityValue[] arrFeatures = new EntityValue[numFeatureType];
+                arrFeatures[0] = featuresByType[0][i];
+                featureArrList.add(arrFeatures);
             }
-            String abbrevStr = abbrevsSb.toString();
-
-            String variantId = (productId + abbrevStr);
-            if(variantId.length() > 50) {
-                variantId = variantId.substring(0, 50);
-            }
-            EntityValue variant = ef.find("mantle.product.Product").condition("productId", variantId).one();
-            if(variant == null) {
-                LOGGER.debug("Creating variant: " + variantId);
-                //Generate Variant
-                variant = ef.makeValue("mantle.product.Product");
-                variant.setAll(productValueMap);
-                variant.setString("productId", variantId);
-
-                String variantPseudoId = (pseudoId + abbrevStr);
-                if (variantPseudoId.length() > 50) {
-                    variantPseudoId = variantPseudoId.substring(0, 50);
+            for(int iType = 1; iType < numFeatureType; iType++) {
+                EntityValue[] sameTypeFeatures = featuresByType[iType];
+                ArrayList<EntityValue[]> tempList = new ArrayList<>();
+                for(EntityValue[] prevFeatures : featureArrList) {
+                    for (int i = 1; i < sameTypeFeatures.length; i++) {
+                        EntityValue[] arrFeatures = Arrays.copyOf(prevFeatures, numFeatureType);
+                        arrFeatures[iType] = sameTypeFeatures[i];
+                        tempList.add(arrFeatures);
+                    }
+                    prevFeatures[iType] = sameTypeFeatures[0]; //already added
                 }
-                variant.setString("pseudoId", variantPseudoId);
-                variant.create();
+                featureArrList.addAll(tempList);
+            }
 
-                LOGGER.debug("Created product assoc from " + productId + " to " + variantId);
-                //Generate ProductAssoc:
-                EntityValue productAssoc = ef.makeValue("mantle.product.ProductAssoc");
-                productAssoc.setString("productId", productId);
-                productAssoc.setString("toProductId", variantId);
-                productAssoc.setString("productAssocTypeEnumId", "PatVariant");
-                productAssoc.setString("reason", "Auto generated");
-                productAssoc.set("sequenceNum", assocSeqNo);
-                productAssoc.set("fromDate", today);
-                assocSeqNo++;
-                productAssoc.create();
+            //Generate Product Variants, Assocs and Distinguish featureAppl:
+            int assocSeqNo = 1;
 
-                //Generate Distinguish featureAppl
+            for(EntityValue[] features : featureArrList) {
+                StringBuilder abbrevsSb = new StringBuilder("_");
                 for(EntityValue feature : features) {
-                    createProductFeatureAppl(variant, feature,
-                            "PfatDistinguishing", today, null);
+                    String abbrev = (String) feature.getNoCheckSimple("abbrev");
+                    if(!abbrev.isEmpty()) {
+                        abbrevsSb.append(abbrev);
+                    }
                 }
+                String abbrevStr = abbrevsSb.toString();
 
+                String variantId = (productId + abbrevStr);
+                if(variantId.length() > 50) {
+                    variantId = variantId.substring(0, 50);
+                }
+                EntityValue variant = ef.find("mantle.product.Product").condition("productId", variantId).one();
+                if(variant == null) {
+                    LOGGER.debug("Creating variant: " + variantId);
+                    //Generate Variant
+                    variant = ef.makeValue("mantle.product.Product");
+                    variant.setAll(productValueMap);
+                    variant.setString("productId", variantId);
+
+                    String variantPseudoId = (pseudoId + abbrevStr);
+                    if (variantPseudoId.length() > 50) {
+                        variantPseudoId = variantPseudoId.substring(0, 50);
+                    }
+                    variant.setString("pseudoId", variantPseudoId);
+                    variant.create();
+
+                    LOGGER.debug("Created product assoc from " + productId + " to " + variantId);
+                    //Generate ProductAssoc:
+                    EntityValue productAssoc = ef.makeValue("mantle.product.ProductAssoc");
+                    productAssoc.setString("productId", productId);
+                    productAssoc.setString("toProductId", variantId);
+                    productAssoc.setString("productAssocTypeEnumId", "PatVariant");
+                    productAssoc.setString("reason", "Auto generated");
+                    productAssoc.set("sequenceNum", assocSeqNo);
+                    productAssoc.set("fromDate", today);
+                    assocSeqNo++;
+                    productAssoc.create();
+
+                    //Generate Distinguish featureAppl
+                    for(EntityValue feature : features) {
+                        createProductFeatureAppl(variant, feature,
+                                "PfatDistinguishing", today, null);
+                    }
+
+                }
             }
         }
+
+
+        /**
+         *
+         */
+        final String[] priceTypes = new String[]{"PptList", "PptCurrent", "PptWholesale"};
+//                , "PptAverage", "PptMinimum", "PptMaximum"
+//                , "PptPromotional", "PptCompetitive", "PptSpecialPromo"};
+
+        String sPrices = (String) product.getNoCheckSimple("prices");
+        String[] newPrices = splitStr(sPrices);
+        if(newPrices != EMPTY_ARR) {
+            EntityList priceList = ef.find("mantle.product.ProductPrice")
+                    .condition("productId", productId)
+                    .conditionDate("fromDate", "thruDate", today)
+                    .forUpdate(true)
+                    .list();
+            for(EntityValue price : priceList) {
+                String priceType = (String) price.getNoCheckSimple("priceTypeEnumId");
+                int priceTypeIdx = getIndex(priceType, priceTypes);
+                if(priceTypeIdx < 0) {
+                    continue;
+                }
+                String newPriceVal = newPrices[priceTypeIdx];
+                if(newPriceVal != null && !newPriceVal.isEmpty()) {
+                    newPrices[priceTypeIdx] = null;
+                    if(newPriceVal.equals("_NA_")) {
+                        //DELETE (set expired)
+                        price.set("thruDate", today);
+                        price.update();
+                    } else {
+                        try {
+                            //UPDATE
+                            BigDecimal priceVal = new BigDecimal(newPriceVal);
+                            price.set("price", priceVal);
+                            price.update();
+                        } catch (NumberFormatException e) {
+                            LOGGER.info("Failed to import prices. value is not a valid number: " + newPriceVal);
+                        }
+                    }
+                }
+            }
+            int i = newPrices.length;
+            if(i > priceTypes.length) i = priceTypes.length;
+            for(i--; i >= 0; i--) {
+                String newPriceVal = newPrices[i];
+                if (newPriceVal == null || newPriceVal.equals("_NA_")) {
+                    continue;
+                }
+                try {
+                    //UPDATE
+                    BigDecimal priceVal = new BigDecimal(newPriceVal);
+                    EntityValue price = ef.makeValue("mantle.product.ProductPrice");
+                    price.set("priceTypeEnumId", priceTypes[i]);
+                    price.set("price", priceVal);
+                    price.set("minQuantity", 1);
+                    price.set("fromDate", today);
+                    price.set("pricePurposeEnumId", "PppPurchase");
+                    price.set("productId", productId);
+                    price.set("vendorPartyId", tenantId);
+                    price.set("quantityUomId", "OTH_ea");
+                    price.setSequencedIdPrimary();
+                    price.create();
+                } catch (Exception e) {
+                    LOGGER.info("Failed to import prices. value is not a valid number: " + newPriceVal);
+                }
+            }
+        }
+    }
+    private static int getIndex(String s, String[] source) {
+        if(s == null) return -1;
+        int i =  source.length - 1;
+        for(; i >= 0; i--) if(source[i].equals(s)) break;
+        return i;
     }
 }

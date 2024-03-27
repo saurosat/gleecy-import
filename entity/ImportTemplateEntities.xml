@@ -12,6 +12,7 @@
         <field name="ePftTopic" type="text-long" />
         <field name="ePftArtist" type="text-long" />
         <field name="categories" type="text-long" />
+        <field name="prices" type="text-long" />
     </extend-entity>
     <extend-entity entity-name="ProductFeature" package="mantle.product.feature" >
         <index name="FEATURE_ID_ABBREV" unique="true">
