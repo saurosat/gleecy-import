@@ -1,0 +1,11 @@
+*.class
+*.jar
+*.bin
+.idea
+out
+*.ipr
+*.iws
+*.iml
+/build
+/build/*
+/build/classes/java/main/io/gleecy/parser/
