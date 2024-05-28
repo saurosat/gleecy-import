@@ -21,5 +21,9 @@
             <subscreens-item name="FileImport" menu-title="Import Data"
                              location="component://DataImport/screen/FileImport.xml" />
         </screen>
+        <screen location="component://SimpleScreens/screen/SimpleScreens/ProductStore.xml">
+            <subscreens-item name="SendToFO" menu-title="Publish Data" menu-index="8"
+                             location="component://DataImport/screen/SendToFO.xml" />
+        </screen>
     </screen-facade>
 </moqui-conf>
