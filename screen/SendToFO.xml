@@ -7,10 +7,10 @@
         <parameter name="entityName" required="true" />
         <parameter name="productStoreId" required="true"/>
         <actions>
+            <log message="Sending Entities ${entityName}" level="info" />
             <script>
                 import org.moqui.entity.EntityValue
                 import io.gleecy.foi.HttpTopic
-                System.out.println(entityName);
             </script>
             <if condition="entityName != 'mantle.product.store.ProductStorePromoProduct' &amp;&amp; entityName.startsWith('mantle.product.store.')">
                 <then>
@@ -76,12 +76,26 @@
                             </if>
                         <else-if condition="eName == 'mantle.product.category.ProductCategoryMember' || eName == 'mantle.product.feature.ProductFeatureAppl' || eName.startsWith('mantle.product.Product')">
                             <iterate list="storeProdIds" entry="ids">
-                                <entity-find entity-name="${eName}" list="eList">
+                                <entity-find entity-name="${eName}" list="eList" cache="true" for-update="false">
                                     <econdition field-name="productId" value="${ids.productId}" operator="equals"/>
                                 </entity-find>
                                 <iterate list="eList" entry="entity">
                                     <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
                                 </iterate>
+                                <if condition="eName != 'mantle.product.category.ProductCategoryMember' &amp;&amp; eName != 'mantle.product.ProductAssoc'" >
+                                    <entity-find entity-name="mantle.product.ProductAssoc" list="assocs" for-update="false" cache="true">
+                                        <econdition field-name="productId" value="${ids.productId}" operator="equals"/>
+                                        <select-field field-name="toProductId"/>
+                                    </entity-find>
+                                    <iterate list="assocs" entry="assoc">
+                                        <entity-find entity-name="${eName}" list="entities" cache="true" for-update="false">
+                                            <econdition field-name="productId" value="${assoc.toProductId}" operator="equals"/>
+                                        </entity-find>
+                                        <iterate list="entities" entry="entity">
+                                            <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
+                                        </iterate>
+                                    </iterate>
+                                </if>
                             </iterate>
                         </else-if>
                         <else-if condition="eName.startsWith('mantle.product.category.')" >
@@ -94,6 +108,12 @@
                                 </iterate>
                             </iterate>
                         </else-if>
+                        <else>
+                            <entity-find entity-name="${eName}" list="eList" for-update="false" cache="true" />
+                            <iterate list="eList" entry="entity">
+                                <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                            </iterate>
+                        </else>
                         </if>
                     </iterate>
                 </else>
