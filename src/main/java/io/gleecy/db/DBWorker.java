@@ -1,8 +1,10 @@
 package io.gleecy.db;
 
+import io.gleecy.service.ProductEntityServices;
 import org.apache.commons.lang3.StringUtils;
 import org.moqui.Moqui;
 import org.moqui.context.*;
+import org.moqui.entity.EntityFacade;
 import org.moqui.entity.EntityValue;
 import org.moqui.impl.context.*;
 import org.moqui.impl.entity.EntityDefinition;
@@ -131,6 +133,22 @@ public class DBWorker {
             LOGGER.debug("FK fields of " + ed.fullEntityName + ": " + StringUtils.join(fks, ","));
             return fks;
         }
+        void storeEntityRelates(EntityValue entity) {
+            String entityName = entity.getEntityName();
+            boolean isProduct = entityName.equals("mantle.product.Product");
+            boolean isCategory = entityName.equals("mantle.product.category.ProductCategory");
+            if(!isProduct && !isCategory) {
+                return;
+            }
+            ExecutionContext ec = getEcfi().getExecutionContext();
+            EntityFacade ef = ec.getEntity();
+            String tenantId = ec.getUser().getTenantId();
+            if(isProduct) {
+                ProductEntityServices.generateProductRelates(entity, tenantId, ef);
+            } else {
+                ProductEntityServices.generateCategoryRelates(entity, tenantId, ef);
+            }
+        }
         void store(List<String> rowValues, EntityValue entity, TransactionFacade tf) {
             EntityDefinition ed = ((EntityValueBase) entity).getEntityDefinition();
             Set<String> fks = getFkFieldNames(ed);
@@ -172,11 +190,12 @@ public class DBWorker {
                                 existing.put(k, v);
                             }
                         });
-                        existing.update();
+                        entity = existing.update();
                     }
                 } else {
-                    entity.create();
+                    entity = entity.create();
                 }
+                storeEntityRelates(entity);
                 rowValues.set(1, SUCCESS_MESSAGE);
             } catch (Exception e) {
                 String errStr = "Error saving entity " + entity.getPrimaryKeysString();

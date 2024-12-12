@@ -83,13 +83,7 @@ public class ProductEntityServices {
     private static String pendingRollupKey(String pseudoId, String tenantId) {
         return "rollup_" + pseudoId + "_" + tenantId;
     }
-    public static void generateCategoryRelates(ExecutionContext ec) {
-        EntityFacade ef = ec.getEntity();
-        UserFacade uf = ec.getUser();
-        String tenantId = uf.getTenantId();
-
-        ContextStack cs = ec.getContext();
-        EntityValue category = (EntityValue) cs.get("entityValue");
+    public static void generateCategoryRelates(EntityValue category, String tenantId, EntityFacade ef) {
         EntityValue pendingRollup = popPendingEntity(pendingRollupKey((String) category.getNoCheckSimple("pseudoId"), tenantId));
         if(pendingRollup != null) {
             pendingRollup.set("parentProductCategoryId", category.getNoCheckSimple("productCategoryId"));
@@ -131,16 +125,16 @@ public class ProductEntityServices {
             }
         }
     }
-    public static void generateProductRelates(ExecutionContext ec) {
-        _ec.set(ec);
+    public static void generateCategoryRelates(ExecutionContext ec) {
         EntityFacade ef = ec.getEntity();
         UserFacade uf = ec.getUser();
         String tenantId = uf.getTenantId();
 
         ContextStack cs = ec.getContext();
-        EntityValue product = (EntityValue) cs.get("entityValue");
-        EntityValue oriProduct = (EntityValue) cs.get("originalValue");
-
+        EntityValue category = (EntityValue) cs.get("entityValue");
+        generateCategoryRelates(category, tenantId, ef);
+    }
+    public static void generateProductRelates(EntityValue product, String tenantId, EntityFacade ef) {
         Timestamp today = new Timestamp(System.currentTimeMillis());
 
         Map<String, Object> productValueMap = new HashMap<>(product.getEtlValues());
@@ -445,7 +439,16 @@ public class ProductEntityServices {
                 }
             }
         }
+    }
+    public static void generateProductRelates(ExecutionContext ec) {
+        _ec.set(ec);
+        EntityFacade ef = ec.getEntity();
+        UserFacade uf = ec.getUser();
+        String tenantId = uf.getTenantId();
 
+        ContextStack cs = ec.getContext();
+        EntityValue product = (EntityValue) cs.get("entityValue");
+        generateProductRelates(product, tenantId, ef);
     }
     private static int getIndex(String s, String[] source) {
         if(s == null) return -1;
