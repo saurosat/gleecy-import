@@ -91,7 +91,7 @@ public class ProductEntityServices {
         }
 
         String sParentCats = (String) category.getNoCheckSimple("parentCategories");
-        if(sParentCats != null && sParentCats.isBlank()) {
+        if(sParentCats != null && !sParentCats.isBlank()) {
             Set<String> parentCats = sParentCats.equals("_NA_") ? Set.of() : new HashSet<>(Arrays.asList(splitStr(sParentCats)));
             Timestamp today = new Timestamp(System.currentTimeMillis());
             String categoryId = (String) category.getNoCheckSimple("productCategoryId");
