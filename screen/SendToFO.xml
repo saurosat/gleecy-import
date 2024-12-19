@@ -21,7 +21,6 @@
                         <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
                     </iterate>
                 </then><else>
-                    <set field="resultList" from="[]" />
                     <if condition="entityName == 'ALL'">
                         <then>
                             <set field="resultList" from="[
@@ -42,6 +41,9 @@
                         </then><else-if condition="entityName != '_NA_'">
                             <set field="resultList" from="[entityName]" />
                         </else-if>
+                        <else>
+                            <set field="resultList" from="[]" />
+                        </else>
                     </if>
                     <entity-find entity-name="mantle.product.store.StoreViewableCategories" cache="true" for-update="false" list="storeCatIds" >
                         <econdition field-name="productStoreId" from="productStoreId" />
