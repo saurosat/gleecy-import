@@ -38,11 +38,11 @@
                                 'mantle.product.feature.ProductFeatureAppl',
                                 'mantle.product.ProductAssoc'
                             ]"/>
-                        </then><else-if condition="entityName != '_NA_'">
-                            <set field="resultList" from="[entityName]" />
+                        </then><else-if condition="entityName == '_NA_'">
+                            <set field="resultList" from="[]" />
                         </else-if>
                         <else>
-                            <set field="resultList" from="[]" />
+                            <set field="resultList" from="[entityName]" />
                         </else>
                     </if>
                     <entity-find entity-name="mantle.product.store.StoreViewableCategories" cache="true" for-update="false" list="storeCatIds" >
@@ -78,8 +78,8 @@
                             </if>
                         <else-if condition="eName == 'mantle.product.category.ProductCategoryMember' || eName == 'mantle.product.feature.ProductFeatureAppl' || eName.startsWith('mantle.product.Product')">
                             <iterate list="storeProdIds" entry="ids">
-                                <entity-find entity-name="${eName}" list="eList" cache="true" for-update="false">
-                                    <econdition field-name="productId" value="${ids.productId}" operator="equals"/>
+                                <entity-find entity-name="${eName}" list="eList" cache="true">
+                                    <econdition field-name="productId" from="ids.productId"/>
                                 </entity-find>
                                 <iterate list="eList" entry="entity">
                                     <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
