@@ -18,12 +18,13 @@
                         <econdition field-name="productStoreId" from="productStoreId" operator="equals"/>
                     </entity-find>
                     <iterate list="eList" entry="entity">
-                        <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                        <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId]" />
                     </iterate>
                 </then><else>
                     <if condition="entityName == 'ALL'">
                         <then>
                             <set field="resultList" from="[
+                                'moqui.basic.Enumeration',
                                 'mantle.product.store.ProductStore',
                                 'mantle.product.store.ProductStorePromotion',
                                 'mantle.product.store.ProductStorePromoProduct',
@@ -64,7 +65,7 @@
                                     </entity-find>
                                     <iterate list="eList" entry="entity">
                                         <log message="Promo Product ID: ${entity.productId}" />
-                                        <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic"  in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                                        <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic"  in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId]" />
                                     </iterate>
                                 </iterate>
                             <else>
@@ -72,7 +73,7 @@
                                     <econdition field-name="productStoreId" from="productStoreId" operator="equals"/>
                                 </entity-find>
                                 <iterate list="eList" entry="entity">
-                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic"  in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic"  in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId]" />
                                 </iterate>
                             </else>
                             </if>
@@ -82,7 +83,7 @@
                                     <econdition field-name="productId" from="ids.productId"/>
                                 </entity-find>
                                 <iterate list="eList" entry="entity">
-                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
+                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
                                 </iterate>
                                 <if condition="eName != 'mantle.product.category.ProductCategoryMember' &amp;&amp; eName != 'mantle.product.ProductAssoc'" >
                                     <entity-find entity-name="mantle.product.ProductAssoc" list="assocs" for-update="false" cache="true">
@@ -94,7 +95,7 @@
                                             <econdition field-name="productId" value="${assoc.toProductId}" operator="equals"/>
                                         </entity-find>
                                         <iterate list="entities" entry="entity">
-                                            <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
+                                            <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId, productCategoryId: ids.productCategoryId]" />
                                         </iterate>
                                     </iterate>
                                 </if>
@@ -106,14 +107,14 @@
                                     <econdition field-name="productCategoryId" value="${ids.productCategoryId}" operator="equals"/>
                                 </entity-find>
                                 <iterate list="eList" entry="entity">
-                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                                    <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId]" />
                                 </iterate>
                             </iterate>
                         </else-if>
                         <else>
                             <entity-find entity-name="${eName}" list="eList" for-update="false" cache="true" />
                             <iterate list="eList" entry="entity">
-                                <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'update', productStoreId: productStoreId]" />
+                                <service-call name="gleecy.foi.NotificationServices.publish#EntityTopic" in-map="[entityValue: entity, eecaOperation: 'create', productStoreId: productStoreId]" />
                             </iterate>
                         </else>
                         </if>
