@@ -37,7 +37,8 @@
                                 'mantle.product.ProductPrice',
                                 'mantle.product.feature.ProductFeature',
                                 'mantle.product.feature.ProductFeatureAppl',
-                                'mantle.product.ProductAssoc'
+                                'mantle.product.ProductAssoc',
+                                'moqui.basic.LocalizedEntityField'
                             ]"/>
                         </then><else-if condition="entityName == '_NA_'">
                             <set field="resultList" from="[]" />
@@ -146,6 +147,7 @@
                     <option key="mantle.product.feature.ProductFeature" text="Product Features" />
                     <option key="mantle.product.feature.ProductFeatureAppl" text="Product Feature Application" />
                     <option key="mantle.product.ProductAssoc" text="Product Association" />
+                    <option key="moqui.basic.LocalizedEntityField" text="Localized Entity Field" />
                 </drop-down></default-field>
             </field>
             <field name="submitButton"><default-field title="Submit"><submit/></default-field></field>
